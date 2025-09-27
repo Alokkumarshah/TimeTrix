@@ -2,9 +2,19 @@ const express = require('express');
 const mongoose = require('mongoose');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
+const cors = require('cors');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+require('dotenv').config({ path: path.join(__dirname, '.', '.env') });
 const app = express();
+
+// CORS configuration
+app.use(cors({
+  // origin: true, // Allow all origins
+  origin: process.env.CLIENT_URL, // Allow all origins
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Body parsing middleware (must be before all routes)
 app.use(express.urlencoded({ extended: true }));
@@ -56,11 +66,18 @@ const User = require('./models/User');
 
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
+const mongoUri = process.env.MONGO_URI;
+const mongooseConnection = mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true
-}).then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
+}).then(() => {
+  console.log(mongoUri);
+  console.log('MongoDB connected');
+  return mongoose.connection.getClient();
+}).catch(err => {
+  console.error('MongoDB connection error:', err);
+  throw err;
+});
 
 // Middleware (move above all routes)
 app.use(express.urlencoded({ extended: true }));
@@ -73,7 +90,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'secret',
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
+  store: MongoStore.create({ 
+    clientPromise: mongooseConnection,
+    touchAfter: 24 * 3600, // lazy session update
+    ttl: 14 * 24 * 60 * 60 // 14 days
+  }),
   cookie: { maxAge: 1000 * 60 * 60 * 24 }
 }));
 
@@ -160,7 +181,7 @@ app.post('/timetable/review', (req, res) => {
 // Timetable API
 // Remove direct timetable API route; handled by timetableRoutes
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
@@ -195,4 +216,232 @@ app.post('/faculty/delete', async (req, res) => {
   const { id } = req.body;
   await Faculty.findByIdAndDelete(id);
   res.redirect('/faculty');
+});
+
+// API Routes for React Frontend
+// User API
+app.get('/api/user/me', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const user = await User.findById(req.session.userId).select('-password');
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
+// Batch API
+app.get('/api/batches', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const batches = await Batch.find().populate('subjects classrooms teachers');
+    res.json(batches);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch batches' });
+  }
+});
+
+app.post('/api/batches', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const batch = new Batch(req.body);
+    await batch.save();
+    res.json(batch);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create batch' });
+  }
+});
+
+app.put('/api/batches/:id', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const batch = await Batch.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(batch);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update batch' });
+  }
+});
+
+app.delete('/api/batches/:id', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    await Batch.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete batch' });
+  }
+});
+
+// Faculty API
+app.get('/api/faculty', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const faculty = await Faculty.find().populate('subjects semestersTaught.subject');
+    res.json(faculty);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch faculty' });
+  }
+});
+
+app.post('/api/faculty', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const faculty = new Faculty(req.body);
+    await faculty.save();
+    res.json(faculty);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create faculty' });
+  }
+});
+
+app.put('/api/faculty/:id', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const faculty = await Faculty.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(faculty);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update faculty' });
+  }
+});
+
+app.delete('/api/faculty/:id', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    await Faculty.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete faculty' });
+  }
+});
+
+// Subject API
+app.get('/api/subjects', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const subjects = await Subject.find();
+    res.json(subjects);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch subjects' });
+  }
+});
+
+app.post('/api/subjects', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const subject = new Subject(req.body);
+    await subject.save();
+    res.json(subject);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create subject' });
+  }
+});
+
+app.put('/api/subjects/:id', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const subject = await Subject.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(subject);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update subject' });
+  }
+});
+
+app.delete('/api/subjects/:id', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    await Subject.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete subject' });
+  }
+});
+
+// Classroom API
+app.get('/api/classrooms', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const classrooms = await Classroom.find();
+    res.json(classrooms);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch classrooms' });
+  }
+});
+
+app.post('/api/classrooms', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const classroom = new Classroom(req.body);
+    await classroom.save();
+    res.json(classroom);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create classroom' });
+  }
+});
+
+app.put('/api/classrooms/:id', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const classroom = await Classroom.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(classroom);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update classroom' });
+  }
+});
+
+app.delete('/api/classrooms/:id', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    await Classroom.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete classroom' });
+  }
+});
+
+// Timetable API
+app.post('/api/timetable/generate', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const { generateTimetable } = require('./controllers/scheduleController');
+    await generateTimetable(req, res);
+  } catch (error) {
+    console.error('Timetable generation error:', error);
+    res.status(500).json({ error: 'Failed to generate timetable' });
+  }
 });

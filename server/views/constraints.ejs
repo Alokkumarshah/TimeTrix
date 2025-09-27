@@ -7,31 +7,159 @@
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-    <h2>Constraints</h2>
+    <h2>Fix Subject in Slot</h2>
     <form method="POST" action="/constraints">
-        <input type="text" name="type" placeholder="Type (e.g. faculty_unavailable)" required>
-        <input type="text" name="details" placeholder="Details">
-        <input type="text" name="day" placeholder="Day">
-        <input type="text" name="startTime" placeholder="Start Time">
-        <input type="text" name="endTime" placeholder="End Time">
-        <button type="submit">Add Constraint</button>
+        <input type="hidden" name="type" value="subject_slot_preference">
+        <label for="batchSubject">Batch:</label>
+        <select name="batchSubject" id="batchSubject" required>
+            <option value="">--Select Batch--</option>
+            <% batches.forEach(function(batch) { %>
+                <option value="<%= batch._id %>"><%= batch.name %></option>
+            <% }); %>
+        </select>
+        <label for="subjectPref">Subject:</label>
+        <select name="subjectPref" id="subjectPref" required>
+            <option value="">--Select Subject--</option>
+            <% if (typeof subjects !== 'undefined') { subjects.forEach(function(subject) { %>
+                <option value="<%= subject._id %>"><%= subject.name %></option>
+            <% }); } %>
+        </select>
+        <label for="daySubjectPref">Day:</label>
+        <select name="daySubjectPref" id="daySubjectPref" required>
+            <option value="">--Select Day--</option>
+            <option value="Monday">Monday</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Wednesday">Wednesday</option>
+            <option value="Thursday">Thursday</option>
+            <option value="Friday">Friday</option>
+            <option value="Saturday">Saturday</option>
+        </select>
+        <label for="slotSubjectPref">Slot:</label>
+        <select name="slotSubjectPref" id="slotSubjectPref" required>
+            <option value="">--Select Slot--</option>
+            <option value="Period 1">Period 1</option>
+            <option value="Period 2">Period 2</option>
+            <option value="Period 3">Period 3</option>
+            <option value="Period 4">Period 4</option>
+            <option value="Period 5">Period 5</option>
+            <option value="Period 6">Period 6</option>
+        </select>
+        <button type="submit">Fix Subject Slot</button>
+    </form>
+    
+    <h2>Fix Classroom in Slot</h2>
+    <form method="POST" action="/constraints">
+        <input type="hidden" name="type" value="classroom_preference">
+        <label for="batchClassroom">Batch:</label>
+        <select name="batchClassroom" id="batchClassroom" required>
+            <option value="">--Select Batch--</option>
+            <% batches.forEach(function(batch) { %>
+                <option value="<%= batch._id %>"><%= batch.name %></option>
+            <% }); %>
+        </select>
+        <label for="classroomPref">Classroom:</label>
+        <select name="classroomPref" id="classroomPref" required>
+            <option value="">--Select Classroom--</option>
+            <% if (typeof classrooms !== 'undefined') { classrooms.forEach(function(classroom) { %>
+                <option value="<%= classroom._id %>"><%= classroom.name %></option>
+            <% }); } %>
+        </select>
+        <label for="dayClassroomPref">Day:</label>
+        <select name="dayClassroomPref" id="dayClassroomPref" required>
+            <option value="">--Select Day--</option>
+            <option value="Monday">Monday</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Wednesday">Wednesday</option>
+            <option value="Thursday">Thursday</option>
+            <option value="Friday">Friday</option>
+            <option value="Saturday">Saturday</option>
+        </select>
+        <label for="slotClassroomPref">Slot:</label>
+        <select name="slotClassroomPref" id="slotClassroomPref" required>
+            <option value="">--Select Slot--</option>
+            <option value="Period 1">Period 1</option>
+            <option value="Period 2">Period 2</option>
+            <option value="Period 3">Period 3</option>
+            <option value="Period 4">Period 4</option>
+            <option value="Period 5">Period 5</option>
+            <option value="Period 6">Period 6</option>
+        </select>
+        <button type="submit">Fix Classroom Slot</button>
+    </form>
+        <label for="batch">Batch:</label>
+        <select name="batch" id="batch" required onchange="updateTeachers()">
+            <option value="">--Select Batch--</option>
+            <% batches.forEach(function(batch) { %>
+                <option value="<%= batch._id %>"><%= batch.name %></option>
+            <% }); %>
+        </select>
+        <label for="faculty">Teacher:</label>
+        <select name="faculty" id="faculty" required>
+            <option value="">--Select Teacher--</option>
+        </select>
+    <script>
+    var batchTeachers = JSON.parse('<%= batchTeachers %>');
+    var facultyList = JSON.parse('<%= facultyList %>');
+        function updateTeachers() {
+            var batchId = document.getElementById('batch').value;
+            var teacherSelect = document.getElementById('faculty');
+            teacherSelect.innerHTML = '<option value="">--Select Teacher--</option>';
+            if (batchId && batchTeachers[batchId]) {
+                batchTeachers[batchId].forEach(function(tid) {
+                    var teacher = facultyList.find(function(f) { return f.id === tid; });
+                    if (teacher) {
+                        var opt = document.createElement('option');
+                        opt.value = teacher.id;
+                        opt.textContent = teacher.name;
+                        teacherSelect.appendChild(opt);
+                    }
+                });
+            }
+        }
+        </script>
+        <label for="dayPref">Day:</label>
+        <select name="dayPref" id="dayPref" required>
+            <option value="">--Select Day--</option>
+            <option value="Monday">Monday</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Wednesday">Wednesday</option>
+            <option value="Thursday">Thursday</option>
+            <option value="Friday">Friday</option>
+            <option value="Saturday">Saturday</option>
+        </select>
+        <label for="slotPref">Slot:</label>
+        <select name="slotPref" id="slotPref" required>
+            <option value="">--Select Slot--</option>
+            <option value="Period 1">Period 1</option>
+            <option value="Period 2">Period 2</option>
+            <option value="Period 3">Period 3</option>
+            <option value="Period 4">Period 4</option>
+            <option value="Period 5">Period 5</option>
+            <option value="Period 6">Period 6</option>
+        </select>
+        <button type="submit">Select Slot</button>
     </form>
     <br>
     <table border="1" cellpadding="8" style="margin:auto;">
         <tr>
             <th>Type</th>
-            <th>Details</th>
+            <th>Resource</th>
+            <th>Batch</th>
             <th>Day</th>
-            <th>Start Time</th>
-            <th>End Time</th>
+            <th>Period</th>
+            <th>Action</th>
         </tr>
-        <% constraints.forEach(function(constraint) { %>
+        <% constraints.forEach(function(constraint) { 
+            if (constraint.type === 'teacher_slot_preference' && constraint.details) {
+                var teacher = faculty.find(f => f._id.toString() === String(constraint.details.faculty));
+                var batch = batches.find(b => b._id.toString() === String(constraint.details.batch));
+        %>
         <tr>
-            <td><%= constraint.type %></td>
-            <td><%= constraint.details %></td>
-            <td><%= constraint.day %></td>
-            <td><%= constraint.startTime %></td>
-            <td><%= constraint.endTime %></td>
+            <td>Teacher</td>
+            <td><%= teacher ? teacher.name : 'Unknown' %></td>
+            <td><%= batch ? batch.name : 'Unknown' %></td>
+            <td><%= constraint.details.day %></td>
+            <td><%= constraint.details.slot %></td>
             <td>
                 <form method="POST" action="/constraints/delete" style="display:inline;">
                     <input type="hidden" name="id" value="<%= constraint._id %>">
@@ -39,7 +167,41 @@
                 </form>
             </td>
         </tr>
-        <% }); %>
+        <% } else if (constraint.type === 'subject_slot_preference' && constraint.details) {
+            var batch = batches.find(b => b._id.toString() === String(constraint.details.batch));
+            var subject = (typeof subjects !== 'undefined') ? subjects.find(s => s._id.toString() === String(constraint.details.subject)) : null;
+        %>
+        <tr>
+            <td>Subject</td>
+            <td><%= subject ? subject.name : 'Subject' %></td>
+            <td><%= batch ? batch.name : 'Unknown' %></td>
+            <td><%= constraint.details.day %></td>
+            <td><%= constraint.details.slot %></td>
+            <td>
+                <form method="POST" action="/constraints/delete" style="display:inline;">
+                    <input type="hidden" name="id" value="<%= constraint._id %>">
+                    <button type="submit" onclick="return confirm('Delete this constraint?')">Delete</button>
+                </form>
+            </td>
+        </tr>
+        <% } else if (constraint.type === 'classroom_preference' && constraint.details) {
+            var batch = batches.find(b => b._id.toString() === String(constraint.details.batch));
+            var classroom = (typeof classrooms !== 'undefined') ? classrooms.find(c => c._id.toString() === String(constraint.details.classroom)) : null;
+        %>
+        <tr>
+            <td>Classroom</td>
+            <td><%= classroom ? classroom.name : 'Classroom' %></td>
+            <td><%= batch ? batch.name : 'Unknown' %></td>
+            <td><%= constraint.details.day %></td>
+            <td><%= constraint.details.slot %></td>
+            <td>
+                <form method="POST" action="/constraints/delete" style="display:inline;">
+                    <input type="hidden" name="id" value="<%= constraint._id %>">
+                    <button type="submit" onclick="return confirm('Delete this constraint?')">Delete</button>
+                </form>
+            </td>
+        </tr>
+        <% } }); %>
     </table>
     <br>
     <a href="/dashboard">Back to Dashboard</a>

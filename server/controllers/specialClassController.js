@@ -2,7 +2,7 @@ const SpecialClass = require('../models/SpecialClass');
 
 exports.listSpecialClasses = async (req, res) => {
   if (!req.session.userId) return res.redirect('/login');
-  const classes = await SpecialClass.find().populate('subject faculty batch classroom');
+  const classes = await SpecialClass.find().populate('subject faculty batch classrooms');
   const specialClasses = classes.map(cls => ({
     name: cls.name,
     subject: cls.subject?.name || '',

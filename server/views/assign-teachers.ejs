@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Assign Teachers to Batch</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <h2>Assign Teachers to Batch</h2>
+    <form method="POST" action="/batches/assign-teachers">
+        <label for="batch">Batch:</label>
+        <select name="batch" id="batch" required>
+            <% batches.forEach(function(batch) { %>
+                <option value="<%= batch._id %>"><%= batch.name %></option>
+            <% }); %>
+        </select>
+        <br><br>
+        <label>Teachers:</label><br>
+        <% faculty.forEach(function(teacher) { %>
+            <input type="checkbox" name="teachers" value="<%= teacher._id %>"> <%= teacher.name %> (<%= teacher.email %>)<br>
+        <% }); %>
+        <br>
+        <button type="submit">Assign</button>
+    </form>
+    <br>
+    <a href="/dashboard">Back to Dashboard</a>
+</body>
+</html>

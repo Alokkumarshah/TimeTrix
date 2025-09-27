@@ -37,6 +37,7 @@
             <th>Avg Leaves/Month</th>
             <th>Subjects</th>
             <th>Semesters Taught</th>
+            <th>Delete</th>
         </tr>
         <% faculty.forEach(function(fac) { %>
         <tr>
@@ -51,12 +52,6 @@
                 <% } else { %>
                     None
                 <% } %>
-            </td>
-            <td>
-                <form method="POST" action="/faculty/delete" style="display:inline;">
-                    <input type="hidden" name="id" value="<%= fac._id %>">
-                    <button type="submit" onclick="return confirm('Delete this faculty?')">Delete</button>
-                </form>
             </td>
             <td>
                 <% if (fac.semestersTaught && fac.semestersTaught.length) { %>
