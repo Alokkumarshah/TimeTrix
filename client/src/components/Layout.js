@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -12,24 +12,31 @@ import {
   LogOut,
   Menu,
   X,
-  User
+  User,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useScrollAnimation, useMousePosition } from '../hooks/useScrollAnimation';
+import ThemeToggle from './ThemeToggle';
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
+  const { isDark } = useTheme();
+  const { scrollY } = useScrollAnimation();
+  const { x: mouseX, y: mouseY } = useMousePosition();
   const location = useLocation();
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Batches', href: '/batches', icon: GraduationCap },
-    { name: 'Faculty', href: '/faculty', icon: Users },
-    { name: 'Subjects', href: '/subjects', icon: BookOpen },
-    { name: 'Classrooms', href: '/classrooms', icon: Building },
-    { name: 'Constraints', href: '/constraints', icon: Settings },
-    { name: 'Special Classes', href: '/special-classes', icon: Calendar },
-    { name: 'Timetable', href: '/timetable', icon: Calendar },
+    { name: 'Dashboard', href: '/dashboard', icon: Home, color: 'text-blue-500' },
+    { name: 'Batches', href: '/batches', icon: GraduationCap, color: 'text-purple-500' },
+    { name: 'Faculty', href: '/faculty', icon: Users, color: 'text-green-500' },
+    { name: 'Subjects', href: '/subjects', icon: BookOpen, color: 'text-orange-500' },
+    { name: 'Classrooms', href: '/classrooms', icon: Building, color: 'text-red-500' },
+    { name: 'Constraints', href: '/constraints', icon: Settings, color: 'text-indigo-500' },
+    { name: 'Special Classes', href: '/special-classes', icon: Calendar, color: 'text-pink-500' },
+    { name: 'Timetable', href: '/timetable', icon: Calendar, color: 'text-cyan-500' },
   ];
 
   const handleLogout = async () => {
@@ -38,8 +45,91 @@ const Layout = ({ children }) => {
 
   const isActive = (path) => location.pathname === path;
 
+  // Mouse shadow effect
+  useEffect(() => {
+    const updateMouseShadow = () => {
+      const elements = document.querySelectorAll('.mouse-shadow');
+      elements.forEach(element => {
+        const rect = element.getBoundingClientRect();
+        const elementCenterX = rect.left + rect.width / 2;
+        const elementCenterY = rect.top + rect.height / 2;
+        
+        const distance = Math.sqrt(
+          Math.pow(mouseX - elementCenterX, 2) + Math.pow(mouseY - elementCenterY, 2)
+        );
+        
+        const maxDistance = 200;
+        const intensity = Math.max(0, 1 - distance / maxDistance);
+        
+        if (intensity > 0.1) {
+          element.style.boxShadow = `0 0 ${intensity * 30}px rgba(59, 130, 246, ${intensity * 0.4}), 0 0 ${intensity * 60}px rgba(59, 130, 246, ${intensity * 0.2})`;
+        } else {
+          element.style.boxShadow = '';
+        }
+      });
+    };
+
+    updateMouseShadow();
+  }, [mouseX, mouseY]);
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 transition-all duration-500">
+      {/* CodeHelp-inspired animated background elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-r from-codehelp-blue/20 to-codehelp-purple/20 rounded-full blur-xl"
+          animate={{
+            x: [0, 100, 0],
+            y: [0, -50, 0],
+            scale: [1, 1.2, 1],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        <motion.div
+          className="absolute top-40 right-32 w-24 h-24 bg-gradient-to-r from-codehelp-purple/20 to-codehelp-pink/20 rounded-full blur-xl"
+          animate={{
+            x: [0, -80, 0],
+            y: [0, 60, 0],
+            scale: [1, 0.8, 1],
+          }}
+          transition={{
+            duration: 15,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        <motion.div
+          className="absolute bottom-32 left-1/3 w-40 h-40 bg-gradient-to-r from-codehelp-green/10 to-codehelp-blue/10 rounded-full blur-2xl"
+          animate={{
+            x: [0, 120, 0],
+            y: [0, -80, 0],
+            scale: [1, 1.3, 1],
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        <motion.div
+          className="absolute top-1/2 right-1/4 w-20 h-20 bg-gradient-to-r from-codehelp-orange/15 to-codehelp-red/15 rounded-full blur-lg"
+          animate={{
+            x: [0, -60, 0],
+            y: [0, 40, 0],
+            scale: [1, 1.1, 1],
+          }}
+          transition={{
+            duration: 18,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </div>
+
       {/* Mobile sidebar */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -49,17 +139,17 @@ const Layout = ({ children }) => {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-40 lg:hidden"
           >
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
             <motion.div
               initial={{ x: -300 }}
               animate={{ x: 0 }}
               exit={{ x: -300 }}
-              className="relative flex-1 flex flex-col max-w-xs w-full bg-white"
+              className="relative flex-1 flex flex-col max-w-xs w-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-r border-white/20 dark:border-slate-700/20"
             >
               <div className="absolute top-0 right-0 -mr-12 pt-2">
                 <button
                   type="button"
-                  className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                  className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white bg-white/10 backdrop-blur-sm"
                   onClick={() => setSidebarOpen(false)}
                 >
                   <X className="h-6 w-6 text-white" />
@@ -67,38 +157,72 @@ const Layout = ({ children }) => {
               </div>
               <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
                 <div className="flex-shrink-0 flex items-center px-4">
-                  <h1 className="text-xl font-bold text-primary-600">ClassScheduler</h1>
+                  <motion.div
+                    className="flex items-center space-x-3"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 }}
+                  >
+                    <motion.div
+                      className="p-2 bg-codehelp-gradient rounded-xl"
+                      animate={{ rotate: [0, 360] }}
+                      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                    >
+                      <Sparkles className="h-5 w-5 text-white" />
+                    </motion.div>
+                    <div>
+                      <h1 className="text-xl font-bold gradient-text-codehelp font-display">TimeTrix</h1>
+                      <div className="h-0.5 w-12 bg-codehelp-gradient rounded-full" />
+                    </div>
+                  </motion.div>
                 </div>
                 <nav className="mt-5 px-2 space-y-1">
-                  {navigation.map((item) => {
+                  {navigation.map((item, index) => {
                     const Icon = item.icon;
                     return (
-                      <Link
+                      <motion.div
                         key={item.name}
-                        to={item.href}
-                        className={`${
-                          isActive(item.href)
-                            ? 'bg-primary-100 text-primary-900'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                        } group flex items-center px-2 py-2 text-base font-medium rounded-md transition-colors duration-200`}
-                        onClick={() => setSidebarOpen(false)}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 + index * 0.05 }}
                       >
-                        <Icon className="mr-4 h-6 w-6" />
-                        {item.name}
-                      </Link>
+                        <Link
+                          to={item.href}
+                          className={`${
+                            isActive(item.href)
+                              ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-glow'
+                              : 'text-slate-600 dark:text-slate-300 hover:bg-white/10 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-100'
+                          } group flex items-center px-3 py-3 text-base font-medium rounded-xl transition-all duration-300 transform hover:scale-105 mouse-shadow`}
+                          onClick={() => setSidebarOpen(false)}
+                        >
+                          <Icon className={`mr-4 h-6 w-6 ${isActive(item.href) ? 'text-white' : item.color}`} />
+                          {item.name}
+                        </Link>
+                      </motion.div>
                     );
                   })}
                 </nav>
               </div>
-              <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <User className="h-8 w-8 text-gray-400" />
+              <div className="flex-shrink-0 flex border-t border-white/20 dark:border-slate-700/20 p-4">
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <div className="h-8 w-8 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full flex items-center justify-center">
+                        <User className="h-5 w-5 text-white" />
+                      </div>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-base font-medium text-slate-700 dark:text-slate-200">{user?.name || 'User'}</p>
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{user?.role || 'Scheduler'}</p>
+                    </div>
                   </div>
-                  <div className="ml-3">
-                    <p className="text-base font-medium text-gray-700">{user?.name || 'User'}</p>
-                    <p className="text-sm font-medium text-gray-500">{user?.role || 'Scheduler'}</p>
-                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-white/10 dark:hover:bg-slate-800/50 transition-all duration-300 transform hover:scale-105"
+                    title="Logout"
+                  >
+                    <LogOut className="h-5 w-5" />
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -107,65 +231,108 @@ const Layout = ({ children }) => {
       </AnimatePresence>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
-        <div className="flex-1 flex flex-col min-h-0 bg-white border-r border-gray-200">
+      <motion.div 
+        className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0"
+        initial={{ x: -100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="flex-1 flex flex-col min-h-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-r border-white/20 dark:border-slate-700/20">
           <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-            <div className="flex items-center flex-shrink-0 px-4">
-              <h1 className="text-xl font-bold text-primary-600">ClassScheduler</h1>
-            </div>
+            <motion.div 
+              className="flex items-center flex-shrink-0 px-4"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="flex items-center space-x-3">
+                <motion.div
+                  className="p-2 bg-codehelp-gradient rounded-xl"
+                  animate={{ rotate: [0, 360] }}
+                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                >
+                  <Sparkles className="h-5 w-5 text-white" />
+                </motion.div>
+                <div>
+                  <h1 className="text-xl font-bold gradient-text-codehelp font-display">TimeTrix</h1>
+                  <div className="h-0.5 w-12 bg-codehelp-gradient rounded-full" />
+                </div>
+              </div>
+            </motion.div>
             <nav className="mt-5 flex-1 px-2 space-y-1">
-              {navigation.map((item) => {
+              {navigation.map((item, index) => {
                 const Icon = item.icon;
                 return (
-                  <Link
+                  <motion.div
                     key={item.name}
-                    to={item.href}
-                    className={`${
-                      isActive(item.href)
-                        ? 'bg-primary-100 text-primary-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    } group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-200`}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 + index * 0.05 }}
                   >
-                    <Icon className="mr-3 h-5 w-5" />
-                    {item.name}
-                  </Link>
+                    <Link
+                      to={item.href}
+                      className={`${
+                        isActive(item.href)
+                          ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-glow'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-white/10 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-100'
+                      } group flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 mouse-shadow`}
+                    >
+                      <Icon className={`mr-3 h-5 w-5 ${isActive(item.href) ? 'text-white' : item.color}`} />
+                      {item.name}
+                    </Link>
+                  </motion.div>
                 );
               })}
             </nav>
           </div>
-          <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
-            <div className="flex items-center w-full">
-              <div className="flex-shrink-0">
-                <User className="h-8 w-8 text-gray-400" />
+          <div className="flex-shrink-0 flex border-t border-white/20 dark:border-slate-700/20 p-4">
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="h-8 w-8 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full flex items-center justify-center">
+                    <User className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{user?.name || 'User'}</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{user?.role || 'Scheduler'}</p>
+                </div>
               </div>
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-medium text-gray-700">{user?.name || 'User'}</p>
-                <p className="text-xs font-medium text-gray-500">{user?.role || 'Scheduler'}</p>
+              <div className="flex items-center space-x-2">
+                <ThemeToggle />
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-white/10 dark:hover:bg-slate-800/50 transition-all duration-300 transform hover:scale-105"
+                  title="Logout"
+                >
+                  <LogOut className="h-5 w-5" />
+                </button>
               </div>
-              <button
-                onClick={handleLogout}
-                className="ml-2 p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-200"
-                title="Logout"
-              >
-                <LogOut className="h-5 w-5" />
-              </button>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Main content */}
       <div className="lg:pl-64 flex flex-col flex-1">
         {/* Top bar */}
-        <div className="sticky top-0 z-10 lg:hidden pl-1 pt-1 sm:pl-3 sm:pt-3 bg-gray-50">
-          <button
-            type="button"
-            className="-ml-0.5 -mt-0.5 h-12 w-12 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-6 w-6" />
-          </button>
-        </div>
+        <motion.div 
+          className="sticky top-0 z-10 lg:hidden pl-1 pt-1 sm:pl-3 sm:pt-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-white/20 dark:border-slate-700/20"
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              className="-ml-0.5 -mt-0.5 h-12 w-12 inline-flex items-center justify-center rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 bg-white/10 dark:bg-slate-800/50 backdrop-blur-sm transition-all duration-300 transform hover:scale-105"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+            <ThemeToggle />
+          </div>
+        </motion.div>
 
         {/* Page content */}
         <main className="flex-1">
@@ -174,7 +341,8 @@ const Layout = ({ children }) => {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+                className="mouse-shadow"
               >
                 {children}
               </motion.div>
