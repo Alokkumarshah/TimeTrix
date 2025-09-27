@@ -13,13 +13,14 @@ exports.createFaculty = async (req, res) => {
   const { name, email, department, maxLoadPerWeek, averageLeavesPerMonth, subjects } = req.body;
   let subjectsArr = subjects;
   if (!Array.isArray(subjectsArr)) subjectsArr = subjectsArr ? [subjectsArr] : [];
+  
+  // Get subjects with their semesters
+  const subjectsWithSemesters = await Subject.find({ _id: { $in: subjectsArr } });
   let semestersArr = [];
-  subjectsArr.forEach(subId => {
-    const semesterVal = req.body['semesterFor_' + subId];
-    if (subId && semesterVal && !isNaN(Number(semesterVal))) {
-      semestersArr.push({ subject: subId, semester: Number(semesterVal) });
-    }
+  subjectsWithSemesters.forEach(subject => {
+    semestersArr.push({ subject: subject._id, semester: subject.semester });
   });
+  
   await Faculty.create({ name, email, department, maxLoadPerWeek, averageLeavesPerMonth, subjects: subjectsArr, semestersTaught: semestersArr });
   res.redirect('/faculty');
 };

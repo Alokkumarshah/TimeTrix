@@ -156,14 +156,19 @@ const Batches = () => {
     e.preventDefault();
     try {
       // Prepare subject-teacher assignments for backend
-      const subjectTeacherAssignments = Object.entries(formData.subjectTeacherAssignments)
-        .filter(([subjectId, teacherId]) => teacherId)
-        .map(([subjectId, teacherId]) => ({ subject: subjectId, teacher: teacherId }));
+      const subjectTeacherAssignments = {};
+      Object.entries(formData.subjectTeacherAssignments).forEach(([subjectId, teacherId]) => {
+        if (teacherId && teacherId !== '') {
+          subjectTeacherAssignments[subjectId] = teacherId;
+        }
+      });
 
       const batchData = {
         ...formData,
         subjectTeacherAssignments,
       };
+
+      console.log('Sending batch data:', JSON.stringify(batchData, null, 2));
 
       if (editingBatch) {
         // Update existing batch
@@ -176,7 +181,8 @@ const Batches = () => {
       await fetchData();
     } catch (error) {
       console.error('Error saving batch:', error);
-      alert('Failed to save batch');
+      const errorMessage = error.response?.data?.details || error.response?.data?.error || error.message || 'Failed to save batch';
+      alert(`Failed to save batch: ${errorMessage}`);
     }
   };
 
@@ -242,6 +248,32 @@ const Batches = () => {
       header: 'Shift',
       accessor: 'shift',
       sortable: true,
+    },
+    {
+      key: 'classrooms',
+      header: 'Classrooms',
+      accessor: 'classrooms',
+      render: (batch) => (
+        <div className="flex flex-wrap gap-1">
+          {batch.classrooms?.slice(0, 2).map((classroom, index) => (
+            <span
+              key={index}
+              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
+              title={`${classroom.name} (${classroom.capacity} seats, ${classroom.type})`}
+            >
+              {classroom.name || classroom}
+            </span>
+          ))}
+          {batch.classrooms?.length > 2 && (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+              +{batch.classrooms.length - 2} more
+            </span>
+          )}
+          {(!batch.classrooms || batch.classrooms.length === 0) && (
+            <span className="text-xs text-gray-500">No classrooms assigned</span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'subjects',
@@ -437,29 +469,6 @@ const Batches = () => {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Teachers
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-3">
-              {faculty.map((teacher) => (
-                <label key={teacher._id} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.teachers.includes(teacher._id)}
-                    onChange={(e) => {
-                      const newTeachers = e.target.checked
-                        ? [...formData.teachers, teacher._id]
-                        : formData.teachers.filter(id => id !== teacher._id);
-                      handleMultiSelectChange('teachers', newTeachers);
-                    }}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <span className="text-sm text-gray-700">{teacher.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -479,7 +488,9 @@ const Batches = () => {
                     }}
                     className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
-                  <span className="text-sm text-gray-700">{classroom.name}</span>
+                  <span className="text-sm text-gray-700">
+                    {classroom.name} ({classroom.capacity} seats, {classroom.type})
+                  </span>
                 </label>
               ))}
             </div>

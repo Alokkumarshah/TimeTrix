@@ -168,13 +168,49 @@ const Timetable = () => {
                     return (
                       <td key={day} className="px-4 py-3 text-sm">
                         {entry ? (
-                          <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
-                            <div className="font-medium text-primary-900">{entry.subject}</div>
-                            <div className="text-xs text-primary-700 mt-1 flex items-center">
+                          <div className={`rounded-lg p-3 ${
+                            entry.hasTeacherCollision 
+                              ? 'bg-red-50 border-2 border-red-300' 
+                              : entry.hasClassroomCollision 
+                                ? 'bg-yellow-50 border-2 border-yellow-300'
+                                : 'bg-primary-50 border border-primary-200'
+                          }`}>
+                            <div className={`font-medium ${
+                              entry.hasTeacherCollision 
+                                ? 'text-red-900' 
+                                : entry.hasClassroomCollision 
+                                  ? 'text-yellow-900'
+                                  : 'text-primary-900'
+                            }`}>
+                              {entry.subject}
+                              {entry.hasTeacherCollision && (
+                                <span className="ml-2 text-xs bg-red-200 text-red-800 px-1 rounded">
+                                  TEACHER CONFLICT
+                                </span>
+                              )}
+                              {entry.hasClassroomCollision && !entry.hasTeacherCollision && (
+                                <span className="ml-2 text-xs bg-yellow-200 text-yellow-800 px-1 rounded">
+                                  ROOM CONFLICT
+                                </span>
+                              )}
+                            </div>
+                            <div className={`text-xs mt-1 flex items-center ${
+                              entry.hasTeacherCollision 
+                                ? 'text-red-700' 
+                                : entry.hasClassroomCollision 
+                                  ? 'text-yellow-700'
+                                  : 'text-primary-700'
+                            }`}>
                               <Users className="h-3 w-3 mr-1" />
                               {entry.faculty}
                             </div>
-                            <div className="text-xs text-primary-600 mt-1 flex items-center">
+                            <div className={`text-xs mt-1 flex items-center ${
+                              entry.hasTeacherCollision 
+                                ? 'text-red-600' 
+                                : entry.hasClassroomCollision 
+                                  ? 'text-yellow-600'
+                                  : 'text-primary-600'
+                            }`}>
                               <Building className="h-3 w-3 mr-1" />
                               {entry.classroom}
                             </div>
@@ -305,6 +341,40 @@ const Timetable = () => {
           renderTimetableGrid()
         )}
       </motion.div>
+
+      {/* Collision Summary */}
+      {timetable && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="card"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Collision Summary</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-4 h-4 bg-red-200 border border-red-300 rounded"></div>
+              <span className="text-sm text-gray-700">
+                Teacher Conflicts: {timetable.filter(t => t.hasTeacherCollision).length}
+              </span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-4 h-4 bg-yellow-200 border border-yellow-300 rounded"></div>
+              <span className="text-sm text-gray-700">
+                Classroom Conflicts: {timetable.filter(t => t.hasClassroomCollision && !t.hasTeacherCollision).length}
+              </span>
+            </div>
+          </div>
+          {(timetable.filter(t => t.hasTeacherCollision).length > 0 || 
+            timetable.filter(t => t.hasClassroomCollision).length > 0) && (
+            <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <p className="text-sm text-orange-800">
+                <strong>Note:</strong> Conflicts detected in the timetable. Consider regenerating to resolve these issues.
+              </p>
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Statistics */}
       {timetable && (

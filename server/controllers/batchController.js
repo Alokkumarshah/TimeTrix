@@ -3,6 +3,37 @@ const Classroom = require('../models/Classroom');
 const Faculty = require('../models/Faculty');
 const Subject = require('../models/Subject');
 
+// Helper function to update faculty semestersTaught based on batch assignments
+const updateFacultySemestersTaught = async (batch) => {
+  try {
+    if (!batch.subjectTeacherAssignments || batch.subjectTeacherAssignments.length === 0) {
+      return;
+    }
+
+    for (const assignment of batch.subjectTeacherAssignments) {
+      const faculty = await Faculty.findById(assignment.teacher);
+      if (faculty) {
+        // Check if this subject-semester combination already exists
+        const existingIndex = faculty.semestersTaught.findIndex(st => 
+          (st.subject.toString() === assignment.subject.toString()) && 
+          (st.semester === batch.semester)
+        );
+
+        if (existingIndex === -1) {
+          // Add new semester taught entry
+          faculty.semestersTaught.push({
+            subject: assignment.subject,
+            semester: batch.semester
+          });
+          await faculty.save();
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error updating faculty semestersTaught:', error);
+  }
+};
+
 exports.listBatches = async (req, res) => {
   if (!req.session.userId) return res.redirect('/login');
   const batches = await Batch.find().populate('subjects classrooms teachers');
@@ -14,28 +45,47 @@ exports.listBatches = async (req, res) => {
 
 exports.createBatch = async (req, res) => {
   if (!req.session.userId) return res.redirect('/login');
-  const { name, department, semester, studentsCount, shift, classrooms, teachers, subjects } = req.body;
-  let teachersArr = teachers;
-  if (!Array.isArray(teachersArr)) teachersArr = teachersArr ? [teachersArr] : [];
+  const { name, department, semester, studentsCount, shift, classrooms, subjects, subjectTeacherAssignments } = req.body;
+  
   let subjectsArr = subjects;
   if (!Array.isArray(subjectsArr)) subjectsArr = subjectsArr ? [subjectsArr] : [];
   let classroomsArr = classrooms;
   if (!Array.isArray(classroomsArr)) classroomsArr = classroomsArr ? [classroomsArr] : [];
-  let subjectTeacherAssignments = [];
+  
+  // Process subject-teacher assignments from the frontend
+  let processedAssignments = [];
   let allAssignedTeachers = [];
-  subjectsArr.forEach(subId => {
-    const teacherId = req.body['teacherFor_' + subId];
-    if (teacherId) {
-      subjectTeacherAssignments.push({ subject: subId, teacher: teacherId });
-      if (!allAssignedTeachers.includes(teacherId)) {
-        allAssignedTeachers.push(teacherId);
+  
+  if (subjectTeacherAssignments && typeof subjectTeacherAssignments === 'object') {
+    Object.entries(subjectTeacherAssignments).forEach(([subjectId, teacherId]) => {
+      if (teacherId && teacherId !== '') {
+        processedAssignments.push({ subject: subjectId, teacher: teacherId });
+        if (!allAssignedTeachers.includes(teacherId)) {
+          allAssignedTeachers.push(teacherId);
+        }
       }
-    }
+    });
+  }
+  
+  // Use only teachers assigned to subjects
+  const teachersArr = allAssignedTeachers;
+  
+  const batch = await Batch.create({ 
+    name, 
+    department, 
+    semester, 
+    studentsCount, 
+    shift, 
+    classrooms: classroomsArr, 
+    teachers: teachersArr, 
+    subjects: subjectsArr, 
+    subjectTeacherAssignments: processedAssignments 
   });
-  // Merge any manually selected teachers with assigned ones
-  teachersArr = Array.from(new Set([...teachersArr, ...allAssignedTeachers]));
-  await Batch.create({ name, department, semester, studentsCount, shift, classrooms: classroomsArr, teachers: teachersArr, subjects: subjectsArr, subjectTeacherAssignments });
-  res.redirect('/batches');
+  
+  // Update faculty semestersTaught based on batch semester and subjects
+  await updateFacultySemestersTaught(batch);
+  
+  res.redirect('/classrooms');
 };
 
 exports.deleteBatch = async (req, res) => {

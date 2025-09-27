@@ -63,16 +63,91 @@ const Classroom = require('./models/Classroom');
 const Faculty = require('./models/Faculty');
 const User = require('./models/User');
 
+// Helper function to update faculty semestersTaught based on batch assignments
+const updateFacultySemestersTaught = async (batch) => {
+  try {
+    if (!batch.subjectTeacherAssignments || batch.subjectTeacherAssignments.length === 0) {
+      return;
+    }
 
+    for (const assignment of batch.subjectTeacherAssignments) {
+      const faculty = await Faculty.findById(assignment.teacher);
+      if (faculty) {
+        // Check if this subject-semester combination already exists
+        const existingIndex = faculty.semestersTaught.findIndex(st => 
+          (st.subject.toString() === assignment.subject.toString()) && 
+          (st.semester === batch.semester)
+        );
+
+        if (existingIndex === -1) {
+          // Add new semester taught entry
+          faculty.semestersTaught.push({
+            subject: assignment.subject,
+            semester: batch.semester
+          });
+          await faculty.save();
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error updating faculty semestersTaught:', error);
+  }
+};
+
+// Migration function to fix existing data
+const migrateExistingData = async () => {
+  try {
+    console.log('Starting data migration...');
+    
+    // Fix existing batches - populate teachers from subjectTeacherAssignments
+    const batches = await Batch.find().populate('subjectTeacherAssignments.teacher');
+    for (const batch of batches) {
+      if (batch.subjectTeacherAssignments && batch.subjectTeacherAssignments.length > 0) {
+        const teacherIds = batch.subjectTeacherAssignments
+          .map(assignment => assignment.teacher._id || assignment.teacher)
+          .filter((id, index, self) => self.indexOf(id) === index); // Remove duplicates
+        
+        if (JSON.stringify(batch.teachers.sort()) !== JSON.stringify(teacherIds.sort())) {
+          await Batch.findByIdAndUpdate(batch._id, { teachers: teacherIds });
+          console.log(`Updated teachers for batch: ${batch.name}`);
+        }
+      }
+    }
+    
+    // Fix existing faculty - populate semestersTaught from subjects
+    const faculty = await Faculty.find().populate('subjects');
+    for (const facultyMember of faculty) {
+      if (facultyMember.subjects && facultyMember.subjects.length > 0) {
+        const semestersTaught = facultyMember.subjects.map(subject => ({
+          subject: subject._id,
+          semester: subject.semester
+        }));
+        
+        if (JSON.stringify(facultyMember.semestersTaught) !== JSON.stringify(semestersTaught)) {
+          await Faculty.findByIdAndUpdate(facultyMember._id, { semestersTaught });
+          console.log(`Updated semestersTaught for faculty: ${facultyMember.name}`);
+        }
+      }
+    }
+    
+    console.log('Data migration completed successfully!');
+  } catch (error) {
+    console.error('Error during data migration:', error);
+  }
+};
 
 // MongoDB connection
 const mongoUri = process.env.MONGO_URI;
 const mongooseConnection = mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true
-}).then(() => {
+}).then(async () => {
   console.log(mongoUri);
   console.log('MongoDB connected');
+  
+  // Run data migration on startup
+  await migrateExistingData();
+  
   return mongoose.connection.getClient();
 }).catch(err => {
   console.error('MongoDB connection error:', err);
@@ -181,6 +256,66 @@ app.post('/timetable/review', (req, res) => {
 // Timetable API
 // Remove direct timetable API route; handled by timetableRoutes
 
+// Migration endpoint
+app.post('/api/migrate-data', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    await migrateExistingData();
+    res.json({ success: true, message: 'Data migration completed successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to migrate data' });
+  }
+});
+
+// Force refresh endpoint to ensure all data is properly populated
+app.post('/api/refresh-data', async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    console.log('Force refreshing all data...');
+    
+    // Fix all batches
+    const batches = await Batch.find().populate('subjectTeacherAssignments.teacher');
+    for (const batch of batches) {
+      if (batch.subjectTeacherAssignments && batch.subjectTeacherAssignments.length > 0) {
+        const teacherIds = batch.subjectTeacherAssignments
+          .map(assignment => assignment.teacher._id || assignment.teacher)
+          .filter((id, index, self) => self.indexOf(id) === index);
+        
+        await Batch.findByIdAndUpdate(batch._id, { teachers: teacherIds });
+        console.log(`Updated teachers for batch: ${batch.name}`);
+      }
+    }
+    
+    // Fix all faculty
+    const faculty = await Faculty.find().populate('subjects');
+    for (const facultyMember of faculty) {
+      if (facultyMember.subjects && facultyMember.subjects.length > 0) {
+        const semestersTaught = facultyMember.subjects.map(subject => ({
+          subject: subject._id,
+          semester: subject.semester
+        }));
+        
+        await Faculty.findByIdAndUpdate(facultyMember._id, { semestersTaught });
+        console.log(`Updated semestersTaught for faculty: ${facultyMember.name}`);
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'All data refreshed successfully',
+      batchesUpdated: batches.length,
+      facultyUpdated: faculty.length
+    });
+  } catch (error) {
+    console.error('Error refreshing data:', error);
+    res.status(500).json({ error: 'Failed to refresh data' });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
@@ -250,11 +385,86 @@ app.post('/api/batches', async (req, res) => {
     return res.status(401).json({ error: 'Not authenticated' });
   }
   try {
-    const batch = new Batch(req.body);
+    console.log('Batch creation request body:', JSON.stringify(req.body, null, 2));
+    const { subjectTeacherAssignments, ...batchData } = req.body;
+    
+    // Fix stringified arrays - parse them if they're strings
+    if (typeof batchData.subjects === 'string') {
+      try {
+        batchData.subjects = JSON.parse(batchData.subjects);
+      } catch (e) {
+        batchData.subjects = [];
+      }
+    }
+    if (typeof batchData.classrooms === 'string') {
+      try {
+        batchData.classrooms = JSON.parse(batchData.classrooms);
+      } catch (e) {
+        batchData.classrooms = [];
+      }
+    }
+    if (typeof batchData.teachers === 'string') {
+      try {
+        batchData.teachers = JSON.parse(batchData.teachers);
+      } catch (e) {
+        batchData.teachers = [];
+      }
+    }
+    
+    // Process subject-teacher assignments
+    let processedAssignments = [];
+    let allAssignedTeachers = [];
+    
+    if (subjectTeacherAssignments && typeof subjectTeacherAssignments === 'object') {
+      Object.entries(subjectTeacherAssignments).forEach(([subjectId, teacherId]) => {
+        if (teacherId && teacherId !== '') {
+          // Ensure we're working with string IDs, not objects
+          const cleanSubjectId = typeof subjectId === 'string' ? subjectId : subjectId.toString();
+          const cleanTeacherId = typeof teacherId === 'string' ? teacherId : teacherId.toString();
+          
+          processedAssignments.push({ 
+            subject: cleanSubjectId, 
+            teacher: cleanTeacherId 
+          });
+          
+          if (!allAssignedTeachers.includes(cleanTeacherId)) {
+            allAssignedTeachers.push(cleanTeacherId);
+          }
+        }
+      });
+    }
+    
+    // Clean up the batch data to ensure proper types
+    const cleanBatchData = {
+      ...batchData,
+      teachers: allAssignedTeachers,
+      subjectTeacherAssignments: processedAssignments,
+      // Ensure arrays are properly formatted
+      subjects: Array.isArray(batchData.subjects) ? batchData.subjects : [],
+      classrooms: Array.isArray(batchData.classrooms) ? batchData.classrooms : []
+    };
+    
+    console.log('Clean batch data:', JSON.stringify(cleanBatchData, null, 2));
+    
+    const batch = new Batch(cleanBatchData);
     await batch.save();
-    res.json(batch);
+    
+    // Update faculty semestersTaught
+    try {
+      await updateFacultySemestersTaught(batch);
+    } catch (facultyError) {
+      console.error('Warning: Failed to update faculty semestersTaught:', facultyError);
+      // Don't fail the batch creation if faculty update fails
+    }
+    
+    const populatedBatch = await Batch.findById(batch._id).populate('subjects classrooms teachers');
+    res.json(populatedBatch);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create batch' });
+    console.error('Batch creation error:', error);
+    res.status(500).json({ 
+      error: 'Failed to create batch',
+      details: error.message 
+    });
   }
 });
 
@@ -263,10 +473,85 @@ app.put('/api/batches/:id', async (req, res) => {
     return res.status(401).json({ error: 'Not authenticated' });
   }
   try {
-    const batch = await Batch.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(batch);
+    console.log('Batch update request body:', JSON.stringify(req.body, null, 2));
+    const { subjectTeacherAssignments, ...batchData } = req.body;
+    
+    // Fix stringified arrays - parse them if they're strings
+    if (typeof batchData.subjects === 'string') {
+      try {
+        batchData.subjects = JSON.parse(batchData.subjects);
+      } catch (e) {
+        batchData.subjects = [];
+      }
+    }
+    if (typeof batchData.classrooms === 'string') {
+      try {
+        batchData.classrooms = JSON.parse(batchData.classrooms);
+      } catch (e) {
+        batchData.classrooms = [];
+      }
+    }
+    if (typeof batchData.teachers === 'string') {
+      try {
+        batchData.teachers = JSON.parse(batchData.teachers);
+      } catch (e) {
+        batchData.teachers = [];
+      }
+    }
+    
+    // Process subject-teacher assignments
+    let processedAssignments = [];
+    let allAssignedTeachers = [];
+    
+    if (subjectTeacherAssignments && typeof subjectTeacherAssignments === 'object') {
+      Object.entries(subjectTeacherAssignments).forEach(([subjectId, teacherId]) => {
+        if (teacherId && teacherId !== '') {
+          // Ensure we're working with string IDs, not objects
+          const cleanSubjectId = typeof subjectId === 'string' ? subjectId : subjectId.toString();
+          const cleanTeacherId = typeof teacherId === 'string' ? teacherId : teacherId.toString();
+          
+          processedAssignments.push({ 
+            subject: cleanSubjectId, 
+            teacher: cleanTeacherId 
+          });
+          
+          if (!allAssignedTeachers.includes(cleanTeacherId)) {
+            allAssignedTeachers.push(cleanTeacherId);
+          }
+        }
+      });
+    }
+    
+    // Clean up the batch data to ensure proper types
+    const cleanBatchData = {
+      ...batchData,
+      teachers: allAssignedTeachers,
+      subjectTeacherAssignments: processedAssignments,
+      // Ensure arrays are properly formatted
+      subjects: Array.isArray(batchData.subjects) ? batchData.subjects : [],
+      classrooms: Array.isArray(batchData.classrooms) ? batchData.classrooms : []
+    };
+    
+    console.log('Clean batch data:', JSON.stringify(cleanBatchData, null, 2));
+    
+    const batch = await Batch.findByIdAndUpdate(req.params.id, cleanBatchData, { new: true });
+    
+    // Update faculty semestersTaught
+    try {
+      await updateFacultySemestersTaught(batch);
+    } catch (facultyError) {
+      console.error('Warning: Failed to update faculty semestersTaught:', facultyError);
+      // Don't fail the batch update if faculty update fails
+    }
+    
+    const populatedBatch = await Batch.findById(batch._id).populate('subjects classrooms teachers');
+    res.json(populatedBatch);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update batch' });
+    console.error('Batch update error:', error);
+    res.status(500).json({ 
+      error: 'Failed to update batch',
+      details: error.message 
+    });
   }
 });
 
@@ -300,9 +585,26 @@ app.post('/api/faculty', async (req, res) => {
     return res.status(401).json({ error: 'Not authenticated' });
   }
   try {
-    const faculty = new Faculty(req.body);
+    const { subjects, ...facultyData } = req.body;
+    
+    // Get subjects with their semesters to populate semestersTaught
+    let semestersArr = [];
+    if (subjects && subjects.length > 0) {
+      const subjectsWithSemesters = await Subject.find({ _id: { $in: subjects } });
+      subjectsWithSemesters.forEach(subject => {
+        semestersArr.push({ subject: subject._id, semester: subject.semester });
+      });
+    }
+    
+    const faculty = new Faculty({
+      ...facultyData,
+      subjects: subjects || [],
+      semestersTaught: semestersArr
+    });
     await faculty.save();
-    res.json(faculty);
+    
+    const populatedFaculty = await Faculty.findById(faculty._id).populate('subjects semestersTaught.subject');
+    res.json(populatedFaculty);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create faculty' });
   }
@@ -313,8 +615,25 @@ app.put('/api/faculty/:id', async (req, res) => {
     return res.status(401).json({ error: 'Not authenticated' });
   }
   try {
-    const faculty = await Faculty.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(faculty);
+    const { subjects, ...facultyData } = req.body;
+    
+    // Get subjects with their semesters to populate semestersTaught
+    let semestersArr = [];
+    if (subjects && subjects.length > 0) {
+      const subjectsWithSemesters = await Subject.find({ _id: { $in: subjects } });
+      subjectsWithSemesters.forEach(subject => {
+        semestersArr.push({ subject: subject._id, semester: subject.semester });
+      });
+    }
+    
+    const faculty = await Faculty.findByIdAndUpdate(req.params.id, {
+      ...facultyData,
+      subjects: subjects || [],
+      semestersTaught: semestersArr
+    }, { new: true });
+    
+    const populatedFaculty = await Faculty.findById(faculty._id).populate('subjects semestersTaught.subject');
+    res.json(populatedFaculty);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update faculty' });
   }

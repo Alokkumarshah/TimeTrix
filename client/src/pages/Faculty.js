@@ -9,6 +9,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 const Faculty = () => {
   const [faculty, setFaculty] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [filteredSubjects, setFilteredSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingFaculty, setEditingFaculty] = useState(null);
@@ -35,6 +36,7 @@ const Faculty = () => {
 
       setFaculty(facultyRes.data || []);
       setSubjects(subjectsRes.data || []);
+      setFilteredSubjects(subjectsRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -53,6 +55,7 @@ const Faculty = () => {
       subjects: [],
       semestersTaught: [],
     });
+    setFilteredSubjects(subjects);
     setModalOpen(true);
   };
 
@@ -106,6 +109,14 @@ const Faculty = () => {
       ...prev,
       [name]: value,
     }));
+    
+    // Filter subjects by department when department changes
+    if (name === 'department') {
+      const filteredSubjects = subjects.filter(subject => 
+        !value || subject.department === value
+      );
+      setFilteredSubjects(filteredSubjects);
+    }
   };
 
   const handleMultiSelectChange = (name, value) => {
@@ -351,7 +362,7 @@ const Faculty = () => {
               Teaching Subjects and Semesters
             </label>
             <div className="space-y-3 max-h-64 overflow-y-auto border border-gray-300 rounded-lg p-3">
-              {subjects.map((subject) => (
+              {filteredSubjects.map((subject) => (
                 <div key={subject._id} className="flex items-center space-x-3 p-2 border border-gray-200 rounded-lg">
                   <input
                     type="checkbox"
@@ -373,19 +384,6 @@ const Faculty = () => {
                     <span className="text-sm font-medium text-gray-700">{subject.name}</span>
                     <span className="text-xs text-gray-500 ml-2">(Sem {subject.semester})</span>
                   </div>
-                  {formData.subjects.includes(subject._id) && (
-                    <input
-                      type="number"
-                      placeholder="Semester"
-                      min="1"
-                      max="8"
-                      className="text-xs border border-gray-300 rounded px-2 py-1 w-20"
-                      value={formData.semestersTaught.find(st => 
-                        (st.subject._id || st.subject) === subject._id
-                      )?.semester || ''}
-                      onChange={(e) => handleSubjectSemesterChange(subject._id, e.target.value)}
-                    />
-                  )}
                 </div>
               ))}
             </div>
