@@ -78,13 +78,126 @@ exports.generateTimetable = async function(req, res) {
         }
       }
       for (const batch of batchList) {
+        // PRIORITY 1: Place special classes first (lunch breaks and fixed slots)
+        const batchSpecialClasses = specialClasses.filter(sc => sc.batch?.toString() === batch._id.toString());
+        
+        // Place lunch breaks first
+        for (const sc of batchSpecialClasses) {
+          if (sc.type === 'lunch_break') {
+            const periodsForBreak = (sc.slots && sc.slots.length) ? sc.slots : [];
+            periodsForBreak.forEach(periodName => {
+              timetable.push({
+                batch: batch.name,
+                subject: 'Lunch Break',
+                faculty: '',
+                classroom: '',
+                department: batch.department,
+                shift: batch.shift,
+                day: sc.day,
+                period: periodName,
+                startTime: sc.startTime || '',
+                endTime: sc.endTime || '',
+                preferred: true,
+                fallbackClassroom: false,
+                assignedClassroom: true,
+                fixedSlot: true,
+                specialClassId: sc._id
+              });
+            });
+          }
+        }
+        
+        // Place fixed slots next
+        for (const sc of batchSpecialClasses) {
+          if (sc.type === 'fixed_slot' && sc.subject) {
+            const subject = subjects.find(s => s._id.equals(sc.subject));
+            if (subject) {
+              const teacherId = batch.subjectTeacherAssignments?.find(sta => sta.subject.toString() === sc.subject.toString())?.teacher;
+              const teacher = faculties.find(f => f._id.equals(teacherId));
+              const periodsForFix = (sc.slots && sc.slots.length) ? sc.slots : [];
+              
+              periodsForFix.forEach(periodName => {
+                // Find available classroom for this fixed slot
+                let classroom = null;
+                let fallbackUsed = false;
+                
+                // Check if batch has specific classroom assignments
+                if (batch.classrooms && batch.classrooms.length > 0) {
+                  let assignedClassrooms = classrooms.filter(c => 
+                    batch.classrooms.some(bc => bc.toString() === c._id.toString())
+                  );
+                  
+                  let availableAssignedClassrooms = assignedClassrooms.filter(c => {
+                    let key = `${sc.day}-${periods.indexOf(periodName)}-${c._id}`;
+                    return !usedClassrooms[key];
+                  });
+                  
+                  if (availableAssignedClassrooms.length > 0) {
+                    classroom = availableAssignedClassrooms[0];
+                  } else {
+                    // Use any available classroom as fallback
+                    let allAvailableClassrooms = classrooms.filter(c => {
+                      let key = `${sc.day}-${periods.indexOf(periodName)}-${c._id}`;
+                      return !usedClassrooms[key];
+                    });
+                    if (allAvailableClassrooms.length > 0) {
+                      classroom = allAvailableClassrooms[0];
+                      fallbackUsed = true;
+                    } else {
+                      classroom = classrooms[0];
+                      fallbackUsed = true;
+                    }
+                  }
+                } else {
+                  classroom = classrooms[0];
+                }
+                
+                let key = `${sc.day}-${periods.indexOf(periodName)}-${classroom._id}`;
+                let teacherKey = `${teacher ? teacher.name : 'TBD'}-${sc.day}-${periodName}`;
+                usedClassrooms[key] = true;
+                usedClassrooms[`teacher-${teacherKey}`] = true;
+                
+                timetable.push({
+                  batch: batch.name,
+                  subject: subject.name,
+                  faculty: teacher ? teacher.name : 'TBD',
+                  classroom: classroom ? classroom.name : 'TBD',
+                  department: batch.department,
+                  shift: batch.shift,
+                  day: sc.day,
+                  period: periodName,
+                  startTime: sc.startTime || '',
+                  endTime: sc.endTime || '',
+                  preferred: true,
+                  fallbackClassroom: fallbackUsed,
+                  assignedClassroom: batch.classrooms && batch.classrooms.length > 0 ? 
+                    batch.classrooms.some(bc => bc.toString() === classroom._id.toString()) : true,
+                  fixedSlot: true,
+                  specialClassId: sc._id
+                });
+              });
+            }
+          }
+        }
+        
+        // PRIORITY 2: Place regular subjects (excluding those already placed as fixed slots)
         let subjectTeacherMap = {};
         if (batch.subjectTeacherAssignments && batch.subjectTeacherAssignments.length) {
           batch.subjectTeacherAssignments.forEach(sta => {
             subjectTeacherMap[sta.subject.toString()] = sta.teacher;
           });
         }
+        
+        // Get subjects that are NOT already placed as fixed slots
+        const fixedSubjectIds = batchSpecialClasses
+          .filter(sc => sc.type === 'fixed_slot' && sc.subject)
+          .map(sc => sc.subject.toString());
+        
         for (const subjectId of batch.subjects) {
+          // Skip subjects that are already placed as fixed slots
+          if (fixedSubjectIds.includes(subjectId.toString())) {
+            continue;
+          }
           const subject = subjects.find(s => s._id.equals(subjectId));
           if (!subject) continue;
           const teacherId = subjectTeacherMap[subjectId.toString()];
@@ -322,11 +435,30 @@ exports.generateTimetable = async function(req, res) {
       let teacherSlotMap = {};
       let classroomConstraintViolations = 0;
       let conflictCount = 0;
+      let specialClassesPlaced = 0;
+      let totalSpecialClasses = 0;
+      
+      // Count total special classes that should be placed
+      for (const sc of specialClasses) {
+        if (sc.type === 'lunch_break' || sc.type === 'fixed_slot') {
+          totalSpecialClasses += (sc.slots && sc.slots.length) ? sc.slots.length : 1;
+        }
+      }
       
       timetable.forEach(entry => {
         if (entry.subject === 'Lunch Break') {
-          // Lunch does not count towards conflicts or penalties
+          // Lunch breaks are special classes - give bonus for placing them
+          if (entry.fixedSlot) {
+            specialClassesPlaced++;
+            score += 100; // High bonus for lunch break placement
+          }
           return;
+        }
+        
+        // Check if this is a fixed slot (special class)
+        if (entry.fixedSlot) {
+          specialClassesPlaced++;
+          score += 150; // Even higher bonus for fixed slot placement
         }
         let key = `${entry.batch}-${entry.day}-${entry.period}`;
         let teacherKey = `${entry.faculty}-${entry.day}-${entry.period}`;
@@ -385,6 +517,15 @@ exports.generateTimetable = async function(req, res) {
         let bswKey = `${entry.batch}-${entry.subject}`;
         batchSubjectWeekCount[bswKey] = (batchSubjectWeekCount[bswKey] || 0) + 1;
       });
+      
+      // MASSIVE bonus for placing all special classes
+      if (specialClassesPlaced === totalSpecialClasses && totalSpecialClasses > 0) {
+        score += 1000; // Very high bonus for complete special class placement
+      } else if (totalSpecialClasses > 0) {
+        // Penalty for missing special classes (proportional to how many are missing)
+        const missingSpecialClasses = totalSpecialClasses - specialClassesPlaced;
+        score -= missingSpecialClasses * 200; // Heavy penalty for each missing special class
+      }
       
       // Bonus for conflict-free solutions
       if (conflictCount === 0) {
@@ -703,6 +844,59 @@ exports.generateTimetable = async function(req, res) {
     // Check if timetable is conflict-free
     const isConflictFree = statistics.teacherConflicts === 0 && statistics.classroomConflicts === 0;
     
+    // Build subject ID to name mapping early
+    const subjectIdToName = {};
+    subjects.forEach(s => { subjectIdToName[s._id.toString()] = s.name; });
+    
+    // Compute special class placement status per batch
+    const specialPlacements = {};
+    // Build required tuples from specialClasses for verification
+    const requiredByBatch = {};
+    for (const sc of specialClasses) {
+      const batchKey = sc.batch?.toString();
+      if (!batchKey) continue;
+      if (!requiredByBatch[batchKey]) requiredByBatch[batchKey] = [];
+      if (sc.type === 'lunch_break') {
+        const list = (sc.slots && sc.slots.length) ? sc.slots : [];
+        list.forEach(slot => {
+          requiredByBatch[batchKey].push({ type: 'lunch_break', day: sc.day, period: slot, subject: 'Lunch Break' });
+        });
+      } else if (sc.type === 'fixed_slot' && sc.subject) {
+        const list = (sc.slots && sc.slots.length) ? sc.slots : [];
+        const subjName = subjectIdToName[sc.subject.toString()] || 'Subject';
+        list.forEach(slot => {
+          requiredByBatch[batchKey].push({ type: 'fixed_slot', day: sc.day, period: slot, subject: subjName });
+        });
+      }
+    }
+    // Build lookup from best timetable
+    const byBatchName = {};
+    best.forEach(e => {
+      if (!byBatchName[e.batch]) byBatchName[e.batch] = new Set();
+      byBatchName[e.batch].add(`${e.day}|${e.period}|${e.subject}`);
+    });
+    batches.forEach(b => {
+      const reqs = requiredByBatch[b._id.toString()] || [];
+      if (reqs.length === 0) {
+        // Do not include batches with no special class requirements
+        return;
+      }
+      const placed = [];
+      const missing = [];
+      let allPlaced = true;
+      reqs.forEach(r => {
+        const key = `${r.day}|${r.period}|${r.subject}`;
+        const exists = byBatchName[b.name]?.has(key) || false;
+        if (exists) {
+          placed.push(r);
+        } else {
+          allPlaced = false;
+          missing.push(r);
+        }
+      });
+      specialPlacements[b._id.toString()] = { allPlaced, items: placed, missing, totalRequired: reqs.length };
+    });
+
     if (allBatchesMode) {
       // Group timetable by batch for frontend display
       let batchTimetables = {};
@@ -716,7 +910,8 @@ exports.generateTimetable = async function(req, res) {
         periods,
         statistics,
         isConflictFree,
-        canSave: isConflictFree
+        canSave: isConflictFree,
+        specialPlacements
       });
     } else {
       let selectedBatch = batchList && batchList.length > 0 ? batchList[0] : null;
@@ -726,7 +921,8 @@ exports.generateTimetable = async function(req, res) {
         selectedBatch,
         statistics,
         isConflictFree,
-        canSave: isConflictFree
+        canSave: isConflictFree,
+        specialPlacements
       });
     }
   } catch (err) {

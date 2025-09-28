@@ -296,7 +296,7 @@ const SpecialClasses = () => {
                             {item.type === 'lunch_break' ? 'Lunch Break' : item.type === 'fixed_slot' ? 'Fixed Slot' : item.name}
                           </div>
                           <div className="text-slate-500">
-                            {item.day} • {(item.slots || []).join(', ')} {item.subject ? `• ${subjects.find(s => s._id === item.subject)?.name || ''}` : ''}
+                            {item.day} • {(item.slots || []).join(', ')} {item.subject ? `• ${(typeof item.subject === 'object' ? item.subject.name : subjects.find(s => s._id === item.subject)?.name) || ''}` : ''}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">

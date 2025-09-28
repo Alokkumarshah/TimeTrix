@@ -152,14 +152,6 @@ const Dashboard = () => {
       gradient: 'from-green-500 to-green-600',
       hoverGradient: 'from-green-600 to-green-700',
     },
-    {
-      title: 'Set Constraints',
-      description: 'Configure scheduling constraints',
-      icon: Target,
-      href: '/constraints',
-      gradient: 'from-purple-500 to-purple-600',
-      hoverGradient: 'from-purple-600 to-purple-700',
-    },
   ];
 
   if (loading) {

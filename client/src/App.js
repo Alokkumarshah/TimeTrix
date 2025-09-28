@@ -14,7 +14,6 @@ import Batches from './pages/Batches';
 import Faculty from './pages/Faculty';
 import Subjects from './pages/Subjects';
 import Classrooms from './pages/Classrooms';
-import Constraints from './pages/Constraints';
 import SpecialClasses from './pages/SpecialClasses';
 import Timetable from './pages/Timetable';
 import SavedTimetables from './pages/SavedTimetables';
@@ -65,13 +64,6 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Classrooms />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/constraints" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Constraints />
                   </Layout>
                 </ProtectedRoute>
               } />

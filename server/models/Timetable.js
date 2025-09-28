@@ -43,7 +43,8 @@ const timetableSchema = new mongoose.Schema({
     fallbackClassroom: { type: Boolean, default: false },
     assignedClassroom: { type: Boolean, default: true },
     hasTeacherCollision: { type: Boolean, default: false },
-    hasClassroomCollision: { type: Boolean, default: false }
+    hasClassroomCollision: { type: Boolean, default: false },
+    fixedSlot: { type: Boolean, default: false }
   }],
   statistics: {
     totalClasses: { type: Number, default: 0 },

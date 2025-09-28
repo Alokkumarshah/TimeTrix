@@ -34,7 +34,6 @@ const Layout = ({ children }) => {
     { name: 'Faculty', href: '/faculty', icon: Users, color: 'text-green-500' },
     { name: 'Subjects', href: '/subjects', icon: BookOpen, color: 'text-orange-500' },
     { name: 'Classrooms', href: '/classrooms', icon: Building, color: 'text-red-500' },
-    { name: 'Constraints', href: '/constraints', icon: Settings, color: 'text-indigo-500' },
     { name: 'Special Classes', href: '/special-classes', icon: Calendar, color: 'text-pink-500' },
     { name: 'Timetable', href: '/timetable', icon: Calendar, color: 'text-cyan-500' },
     { name: 'Saved Timetables', href: '/saved-timetables', icon: Calendar, color: 'text-emerald-500' },

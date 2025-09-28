@@ -13,6 +13,7 @@ const Timetable = () => {
   const [allBatchesMode, setAllBatchesMode] = useState(false);
   const [statistics, setStatistics] = useState(null);
   const [isConflictFree, setIsConflictFree] = useState(false);
+  const [specialPlacements, setSpecialPlacements] = useState(null);
   const [canSave, setCanSave] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -77,6 +78,9 @@ const Timetable = () => {
       }
       if (response.data.canSave !== undefined) {
         setCanSave(response.data.canSave);
+      }
+      if (response.data.specialPlacements) {
+        setSpecialPlacements(response.data.specialPlacements);
       }
     } catch (error) {
       console.error('Error generating timetable:', error);
@@ -448,6 +452,121 @@ const Timetable = () => {
           renderTimetableGrid()
         )}
       </motion.div>
+
+      {/* Special Classes Placement Summary */}
+      {specialPlacements && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="card"
+        >
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Special Classes Placement</h3>
+          {(() => {
+            // Build a simple batch name map for display
+            const batchIdToName = {};
+            batches.forEach(b => { batchIdToName[b._id] = `${b.name} - ${b.department}`; });
+            // Only show batches that have any special requirements
+            const entries = Object.entries(specialPlacements || {});
+            if (entries.length === 0) {
+              return <div className="text-sm text-slate-500">No special classes configured.</div>;
+            }
+            return (
+              <div className="space-y-4">
+                {entries.map(([batchId, info]) => (
+                  <div key={batchId}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-medium">{batchIdToName[batchId] || 'Batch'}</div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${info.allPlaced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        {info.allPlaced ? 'All placed' : 'Pending placements'}
+                      </span>
+                    </div>
+                    {info.allPlaced ? (
+                      // If all placed, show the placed table
+                      <table className="min-w-full text-xs border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                        <thead className="bg-slate-50 dark:bg-slate-700">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Day</th>
+                            <th className="px-3 py-2 text-left">Period</th>
+                            <th className="px-3 py-2 text-left">Subject</th>
+                            <th className="px-3 py-2 text-left">Type</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {info.items.map((it, idx) => (
+                            <tr key={idx} className="border-t border-slate-200 dark:border-slate-700">
+                              <td className="px-3 py-2">{it.day}</td>
+                              <td className="px-3 py-2">{it.period}</td>
+                              <td className="px-3 py-2">{it.subject}</td>
+                              <td className="px-3 py-2">
+                                <span className={`px-2 py-1 rounded-full ${it.type === 'lunch_break' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'}`}>
+                                  {it.type === 'lunch_break' ? 'Lunch' : 'Fixed'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      // If some missing, show only the missing table
+                      <div>
+                        <div className="text-xs text-slate-600 dark:text-slate-300 mb-2">Missing placements ({(info.missing || []).length}/{info.totalRequired})</div>
+                        
+                        {/* Helpful message for pending placements */}
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 mb-3">
+                          <div className="flex items-start space-x-2">
+                            <div className="flex-shrink-0">
+                              <svg className="h-5 w-5 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div className="text-sm">
+                              <p className="text-amber-800 dark:text-amber-200 font-medium mb-1">Some special classes couldn't be placed automatically</p>
+                              <p className="text-amber-700 dark:text-amber-300 text-xs">
+                                Try generating the timetable again or check if there are any scheduling conflicts. 
+                                You may need to adjust classroom availability or faculty schedules.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {(info.missing && info.missing.length > 0) ? (
+                          <table className="min-w-full text-xs border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                            <thead className="bg-slate-50 dark:bg-slate-700">
+                              <tr>
+                                <th className="px-3 py-2 text-left">Day</th>
+                                <th className="px-3 py-2 text-left">Period</th>
+                                <th className="px-3 py-2 text-left">Subject</th>
+                                <th className="px-3 py-2 text-left">Type</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {info.missing.map((it, idx) => (
+                                <tr key={idx} className="border-t border-slate-200 dark:border-slate-700">
+                                  <td className="px-3 py-2">{it.day}</td>
+                                  <td className="px-3 py-2">{it.period}</td>
+                                  <td className="px-3 py-2">{it.subject}</td>
+                                  <td className="px-3 py-2">
+                                    <span className={`px-2 py-1 rounded-full ${it.type === 'lunch_break' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'}`}>
+                                      {it.type === 'lunch_break' ? 'Lunch' : 'Fixed'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <div className="text-xs text-slate-500">No details available.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </motion.div>
+      )}
 
       {/* Collision Summary */}
       {timetable && (
