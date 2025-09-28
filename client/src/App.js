@@ -18,6 +18,8 @@ import Constraints from './pages/Constraints';
 import SpecialClasses from './pages/SpecialClasses';
 import Timetable from './pages/Timetable';
 import SavedTimetables from './pages/SavedTimetables';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function App() {
   return (
@@ -30,6 +32,8 @@ function App() {
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               
               {/* Protected routes */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -53,6 +53,9 @@ export const authAPI = {
   register: (userData) => api.post('/api/register', userData),
   logout: () => api.get('/api/logout'),
   getCurrentUser: () => api.get('/api/user/me'),
+  forgotPassword: (email) => api.post('/api/password/forgot', { email }),
+  resetPassword: (token, password) => api.post('/api/password/reset', { token, password }),
+  validateResetToken: (token) => api.post('/api/password/validate-token', { token }),
 };
 
 // Batch API

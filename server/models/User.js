@@ -6,7 +6,9 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { type: String, enum: ['admin', 'scheduler', 'reviewer'], default: 'scheduler' },
   name: { type: String },
-  email: { type: String }
+  email: { type: String },
+  passwordResetToken: { type: String },
+  passwordResetExpires: { type: Date }
 });
 
 userSchema.pre('save', async function(next) {

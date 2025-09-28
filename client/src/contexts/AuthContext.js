@@ -21,6 +21,15 @@ export const AuthProvider = ({ children }) => {
   }, []); // Empty dependency array - only run once on mount
 
   const checkAuthStatus = async () => {
+    const currentPath = window.location.pathname;
+    
+    // Skip auth check for public pages
+    const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
+    if (publicPages.includes(currentPath)) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       // Since we're using session-based auth, we'll check if we can access a protected route
       const response = await authAPI.getCurrentUser();
@@ -32,9 +41,8 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(false);
       }
     } catch (error) {
-      // Don't log auth errors on login/register pages to avoid console spam
-      const currentPath = window.location.pathname;
-      if (currentPath !== '/login' && currentPath !== '/register') {
+      // Don't log auth errors on public pages to avoid console spam
+      if (!publicPages.includes(currentPath)) {
         console.error('Auth check failed:', error);
       }
       setUser(null);

@@ -280,6 +280,14 @@ const Login = () => {
             transition={{ delay: 1.0 }}
             className="text-center"
           >
+            <div className="mb-3">
+              <Link
+                to="/forgot-password"
+                className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors duration-300"
+              >
+                Forgot your password?
+              </Link>
+            </div>
             <p className="text-sm text-slate-600 dark:text-slate-400">
               Don't have an account?{' '}
               <Link
