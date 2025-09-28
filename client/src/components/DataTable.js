@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit, Trash2, Plus, Search, Sparkles, Filter } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, Sparkles, Filter, CheckSquare, Square } from 'lucide-react';
 import ScrollAnimation from './ScrollAnimation';
 
 const DataTable = ({
@@ -8,15 +8,18 @@ const DataTable = ({
   columns = [],
   onEdit,
   onDelete,
+  onBulkDelete,
   onCreate,
   title,
   searchable = true,
   filterable = false,
   loading = false,
   emptyMessage = "No data available",
+  selectable = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [selectedItems, setSelectedItems] = useState(new Set());
 
   const filteredData = data.filter(item => {
     if (!searchTerm) return true;
@@ -47,6 +50,36 @@ const DataTable = ({
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
   };
+
+  // Selection handlers
+  const handleSelectAll = () => {
+    if (selectedItems.size === sortedData.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(sortedData.map(item => item._id)));
+    }
+  };
+
+  const handleSelectItem = (itemId) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(itemId)) {
+      newSelected.delete(itemId);
+    } else {
+      newSelected.add(itemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedItems.size > 0 && onBulkDelete) {
+      const selectedData = sortedData.filter(item => selectedItems.has(item._id));
+      onBulkDelete(selectedData);
+      setSelectedItems(new Set());
+    }
+  };
+
+  const isAllSelected = sortedData.length > 0 && selectedItems.size === sortedData.length;
+  const isIndeterminate = selectedItems.size > 0 && selectedItems.size < sortedData.length;
 
   if (loading) {
     return (
@@ -99,6 +132,21 @@ const DataTable = ({
             </motion.div>
           )}
           
+          {selectable && selectedItems.size > 0 && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.25 }}
+              onClick={handleBulkDelete}
+              className="btn-danger flex items-center space-x-2 group relative overflow-hidden"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Trash2 className="h-5 w-5 group-hover:rotate-12 transition-transform duration-300" />
+              <span>Delete Selected ({selectedItems.size})</span>
+            </motion.button>
+          )}
+          
           {onCreate && (
             <motion.button
               initial={{ opacity: 0, scale: 0.8 }}
@@ -126,12 +174,36 @@ const DataTable = ({
         <table className="table">
           <thead className="table-header">
             <tr>
+              {selectable && (
+                <motion.th
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="table-header-cell w-12"
+                >
+                  <button
+                    onClick={handleSelectAll}
+                    className="flex items-center justify-center w-full h-full p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors duration-200"
+                    title={isAllSelected ? 'Deselect All' : 'Select All'}
+                  >
+                    {isAllSelected ? (
+                      <CheckSquare className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                    ) : isIndeterminate ? (
+                      <div className="h-5 w-5 border-2 border-primary-600 dark:border-primary-400 rounded bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center">
+                        <div className="h-2 w-2 bg-primary-600 dark:bg-primary-400 rounded-sm" />
+                      </div>
+                    ) : (
+                      <Square className="h-5 w-5 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200" />
+                    )}
+                  </button>
+                </motion.th>
+              )}
               {columns.map((column, index) => (
                 <motion.th
                   key={column.key}
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + index * 0.05 }}
+                  transition={{ delay: 0.1 + (selectable ? 1 : 0) + index * 0.05 }}
                   className={`table-header-cell ${column.sortable ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-200' : ''}`}
                   onClick={() => column.sortable && handleSort(column.key)}
                 >
@@ -153,7 +225,7 @@ const DataTable = ({
                 <motion.th
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + columns.length * 0.05 }}
+                  transition={{ delay: 0.1 + (selectable ? 1 : 0) + columns.length * 0.05 }}
                   className="table-header-cell"
                 >
                   Actions
@@ -170,7 +242,7 @@ const DataTable = ({
                   exit={{ opacity: 0 }}
                 >
                   <td
-                    colSpan={columns.length + (onEdit || onDelete ? 1 : 0)}
+                    colSpan={columns.length + (onEdit || onDelete ? 1 : 0) + (selectable ? 1 : 0)}
                     className="px-6 py-16 text-center"
                   >
                     <motion.div
@@ -200,9 +272,23 @@ const DataTable = ({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ delay: index * 0.05 }}
-                    className="table-row hover-lift mouse-shadow"
+                    className={`table-row hover-lift mouse-shadow ${selectedItems.has(item._id) ? 'bg-primary-50 dark:bg-primary-900/20' : ''}`}
                     whileHover={{ scale: 1.01 }}
                   >
+                    {selectable && (
+                      <td className="table-cell w-12">
+                        <button
+                          onClick={() => handleSelectItem(item._id)}
+                          className="flex items-center justify-center w-full h-full p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors duration-200"
+                        >
+                          {selectedItems.has(item._id) ? (
+                            <CheckSquare className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                          ) : (
+                            <Square className="h-5 w-5 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200" />
+                          )}
+                        </button>
+                      </td>
+                    )}
                     {columns.map((column) => (
                       <td key={column.key} className="table-cell">
                         {column.render ? column.render(item) : item[column.accessor]}

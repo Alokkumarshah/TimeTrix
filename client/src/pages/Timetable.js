@@ -106,8 +106,8 @@ const Timetable = () => {
     if (!timetable || timetable.length === 0) {
       return (
         <div className="text-center py-12">
-          <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">No timetable generated yet</p>
+          <Calendar className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+          <p className="text-slate-500 dark:text-slate-400">No timetable generated yet</p>
         </div>
       );
     }
@@ -138,29 +138,29 @@ const Timetable = () => {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-          <GraduationCap className="h-5 w-5 mr-2 text-primary-600" />
+        <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center">
+          <GraduationCap className="h-6 w-6 mr-3 text-blue-600" />
           {batchName}
         </h3>
         
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
-            <thead className="bg-gray-50">
+          <table className="min-w-full bg-white/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg backdrop-blur-sm">
+            <thead className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                   Period
                 </th>
                 {days.map(day => (
-                  <th key={day} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th key={day} className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                     {day}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {periods.map(period => (
-                <tr key={period} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                <tr key={period} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-200">
+                  <td className="px-6 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
                     {period}
                   </td>
                   {days.map(day => {
@@ -168,55 +168,55 @@ const Timetable = () => {
                     return (
                       <td key={day} className="px-4 py-3 text-sm">
                         {entry ? (
-                          <div className={`rounded-lg p-3 ${
+                          <div className={`rounded-xl p-4 shadow-sm transition-all duration-300 hover:shadow-md ${
                             entry.hasTeacherCollision 
-                              ? 'bg-red-50 border-2 border-red-300' 
+                              ? 'bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-600' 
                               : entry.hasClassroomCollision 
-                                ? 'bg-yellow-50 border-2 border-yellow-300'
-                                : 'bg-primary-50 border border-primary-200'
+                                ? 'bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-300 dark:border-yellow-600'
+                                : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-600'
                           }`}>
-                            <div className={`font-medium ${
+                            <div className={`font-semibold text-sm ${
                               entry.hasTeacherCollision 
-                                ? 'text-red-900' 
+                                ? 'text-red-900 dark:text-red-100' 
                                 : entry.hasClassroomCollision 
-                                  ? 'text-yellow-900'
-                                  : 'text-primary-900'
+                                  ? 'text-yellow-900 dark:text-yellow-100'
+                                  : 'text-blue-900 dark:text-blue-100'
                             }`}>
                               {entry.subject}
                               {entry.hasTeacherCollision && (
-                                <span className="ml-2 text-xs bg-red-200 text-red-800 px-1 rounded">
+                                <span className="ml-2 text-xs bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200 px-2 py-1 rounded-full">
                                   TEACHER CONFLICT
                                 </span>
                               )}
                               {entry.hasClassroomCollision && !entry.hasTeacherCollision && (
-                                <span className="ml-2 text-xs bg-yellow-200 text-yellow-800 px-1 rounded">
+                                <span className="ml-2 text-xs bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded-full">
                                   ROOM CONFLICT
                                 </span>
                               )}
                             </div>
-                            <div className={`text-xs mt-1 flex items-center ${
+                            <div className={`text-xs mt-2 flex items-center ${
                               entry.hasTeacherCollision 
-                                ? 'text-red-700' 
+                                ? 'text-red-700 dark:text-red-300' 
                                 : entry.hasClassroomCollision 
-                                  ? 'text-yellow-700'
-                                  : 'text-primary-700'
+                                  ? 'text-yellow-700 dark:text-yellow-300'
+                                  : 'text-blue-700 dark:text-blue-300'
                             }`}>
                               <Users className="h-3 w-3 mr-1" />
                               {entry.faculty}
                             </div>
                             <div className={`text-xs mt-1 flex items-center ${
                               entry.hasTeacherCollision 
-                                ? 'text-red-600' 
+                                ? 'text-red-600 dark:text-red-400' 
                                 : entry.hasClassroomCollision 
-                                  ? 'text-yellow-600'
-                                  : 'text-primary-600'
+                                  ? 'text-yellow-600 dark:text-yellow-400'
+                                  : 'text-blue-600 dark:text-blue-400'
                             }`}>
                               <Building className="h-3 w-3 mr-1" />
                               {entry.classroom}
                             </div>
                           </div>
                         ) : (
-                          <div className="text-gray-400 text-center py-2">-</div>
+                          <div className="text-slate-400 dark:text-slate-500 text-center py-4">-</div>
                         )}
                       </td>
                     );
@@ -235,14 +235,19 @@ const Timetable = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center space-x-3"
+        className="flex items-center space-x-4 mb-8"
       >
-        <div className="p-3 bg-primary-100 rounded-lg">
-          <Calendar className="h-6 w-6 text-primary-600" />
+        <div className="p-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl shadow-lg">
+          <Calendar className="h-8 w-8 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Timetable Generator</h1>
-          <p className="text-gray-600">Generate optimized class schedules using AI algorithms</p>
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 font-display gradient-text">
+            Timetable Generator
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400 text-lg mt-2">
+            Generate optimized class schedules using AI algorithms
+          </p>
+          <div className="h-1 w-20 bg-codehelp-gradient rounded-full mt-3" />
         </div>
       </motion.div>
 
@@ -266,7 +271,7 @@ const Timetable = () => {
                 }}
                 className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
               />
-              <label htmlFor="allBatches" className="ml-2 text-sm text-gray-700">
+              <label htmlFor="allBatches" className="ml-2 text-sm text-slate-700 dark:text-slate-300">
                 Generate for all batches
               </label>
             </div>
@@ -324,9 +329,9 @@ const Timetable = () => {
         className="card"
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Generated Timetable</h2>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Generated Timetable</h2>
           {timetable && (
-            <div className="flex items-center text-sm text-gray-500">
+            <div className="flex items-center text-sm text-slate-500 dark:text-slate-400">
               <Clock className="h-4 w-4 mr-1" />
               Generated on {new Date().toLocaleString()}
             </div>
@@ -350,17 +355,17 @@ const Timetable = () => {
           transition={{ delay: 0.2 }}
           className="card"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Collision Summary</h3>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Collision Summary</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center space-x-3">
               <div className="w-4 h-4 bg-red-200 border border-red-300 rounded"></div>
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-slate-700 dark:text-slate-300">
                 Teacher Conflicts: {timetable.filter(t => t.hasTeacherCollision).length}
               </span>
             </div>
             <div className="flex items-center space-x-3">
               <div className="w-4 h-4 bg-yellow-200 border border-yellow-300 rounded"></div>
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-slate-700 dark:text-slate-300">
                 Classroom Conflicts: {timetable.filter(t => t.hasClassroomCollision && !t.hasTeacherCollision).length}
               </span>
             </div>
@@ -390,8 +395,8 @@ const Timetable = () => {
                 <BookOpen className="h-6 w-6 text-blue-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Classes</p>
-                <p className="text-2xl font-bold text-gray-900">{timetable.length}</p>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Classes</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{timetable.length}</p>
               </div>
             </div>
           </div>
@@ -402,8 +407,8 @@ const Timetable = () => {
                 <Users className="h-6 w-6 text-green-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Unique Faculty</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Unique Faculty</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                   {new Set(timetable.map(t => t.faculty)).size}
                 </p>
               </div>
@@ -416,8 +421,8 @@ const Timetable = () => {
                 <Building className="h-6 w-6 text-purple-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Classrooms Used</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Classrooms Used</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                   {new Set(timetable.map(t => t.classroom)).size}
                 </p>
               </div>

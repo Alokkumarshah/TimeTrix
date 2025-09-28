@@ -152,6 +152,25 @@ const Batches = () => {
     }
   };
 
+  const handleBulkDelete = async (selectedBatches) => {
+    const batchNames = selectedBatches.map(batch => batch.name).join(', ');
+
+    if (window.confirm(`Are you sure you want to delete ${selectedBatches.length} batch(es)?\n\n${batchNames}`)) {
+      try {
+        // Delete all selected batches
+        const deletePromises = selectedBatches.map(batch => 
+          batchAPI.delete(batch._id)
+        );
+        await Promise.all(deletePromises);
+        await fetchData();
+        alert(`Successfully deleted ${selectedBatches.length} batch(es)`);
+      } catch (error) {
+        console.error('Error deleting batches:', error);
+        alert('Failed to delete some batches');
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -265,12 +284,12 @@ const Batches = () => {
             </span>
           ))}
           {batch.classrooms?.length > 2 && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
               +{batch.classrooms.length - 2} more
             </span>
           )}
           {(!batch.classrooms || batch.classrooms.length === 0) && (
-            <span className="text-xs text-gray-500">No classrooms assigned</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">No classrooms assigned</span>
           )}
         </div>
       ),
@@ -280,7 +299,7 @@ const Batches = () => {
       header: 'Subjects',
       accessor: 'subjects',
       render: (batch) => (
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-slate-600 dark:text-slate-300">
           {batch.subjects?.length || 0} subjects
         </span>
       ),
@@ -290,7 +309,7 @@ const Batches = () => {
       header: 'Teachers',
       accessor: 'teachers',
       render: (batch) => (
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-slate-600 dark:text-slate-300">
           {batch.teachers?.length || 0} teachers
         </span>
       ),
@@ -316,8 +335,8 @@ const Batches = () => {
           <GraduationCap className="h-6 w-6 text-blue-600" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Batches</h1>
-          <p className="text-gray-600">Manage student batches and their configurations</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Batches</h1>
+          <p className="text-slate-600 dark:text-slate-300">Manage student batches and their configurations</p>
         </div>
       </motion.div>
 
@@ -326,10 +345,12 @@ const Batches = () => {
         columns={columns}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
         onCreate={handleCreate}
         title="All Batches"
         loading={loading}
         emptyMessage="No batches found. Create your first batch to get started."
+        selectable={true}
       />
 
       <Modal
@@ -338,94 +359,131 @@ const Batches = () => {
         title={editingBatch ? 'Edit Batch' : 'Create New Batch'}
         size="large"
       >
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Batch Name *
               </label>
               <input
                 type="text"
                 name="name"
                 required
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/90 dark:bg-slate-700/90 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="e.g., CS-2024-A"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Department *
               </label>
               <input
                 type="text"
                 name="department"
                 required
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/90 dark:bg-slate-700/90 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.department}
                 onChange={handleInputChange}
                 placeholder="e.g., Computer Science"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Semester
               </label>
               <input
                 type="number"
                 name="semester"
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/90 dark:bg-slate-700/90 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.semester}
                 onChange={handleInputChange}
                 placeholder="e.g., 1"
                 min="1"
                 max="8"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Students Count
               </label>
               <input
                 type="number"
                 name="studentsCount"
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/90 dark:bg-slate-700/90 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.studentsCount}
                 onChange={handleInputChange}
                 placeholder="e.g., 60"
                 min="1"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Shift
               </label>
-              <select
-                name="shift"
-                className="input-field"
-                value={formData.shift}
-                onChange={handleInputChange}
-              >
-                <option value="">Select Shift</option>
-                <option value="Morning">Morning</option>
-                <option value="Afternoon">Afternoon</option>
-                <option value="Evening">Evening</option>
-              </select>
-            </div>
+              <div className="relative">
+                <select
+                  name="shift"
+                  className="w-full px-5 py-4 bg-white/90 dark:bg-slate-700/90 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 appearance-none"
+                  value={formData.shift}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Select Shift</option>
+                  <option value="Morning">Morning</option>
+                  <option value="Afternoon">Afternoon</option>
+                  <option value="Evening">Evening</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </motion.div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
               Subjects for Semester {formData.semester || 'All'}
             </label>
-            <div className="space-y-3 max-h-64 overflow-y-auto border border-gray-300 rounded-lg p-3">
-              {filteredSubjects.map((subject) => (
-                <div key={subject._id} className="flex items-center space-x-3 p-2 border border-gray-200 rounded-lg">
+            <div className="space-y-3 max-h-64 overflow-y-auto border border-slate-200 dark:border-slate-600 rounded-xl p-4 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm">
+              {filteredSubjects.map((subject, index) => (
+                <motion.div 
+                  key={subject._id} 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.7 + index * 0.1 }}
+                  className="flex items-center space-x-4 p-4 border border-slate-200 dark:border-slate-600 rounded-xl bg-white/90 dark:bg-slate-700/90 hover:bg-white dark:hover:bg-slate-700 transition-all duration-300 hover:shadow-md"
+                >
                   <input
                     type="checkbox"
                     checked={formData.subjects.includes(subject._id)}
@@ -435,48 +493,70 @@ const Batches = () => {
                         : formData.subjects.filter(id => id !== subject._id);
                       handleMultiSelectChange('subjects', newSubjects);
                     }}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-500 text-blue-600 focus:ring-blue-500 focus:ring-2 bg-white dark:bg-slate-700"
                   />
                   <div className="flex-1">
-                    <span className="text-sm font-medium text-gray-700">{subject.name}</span>
-                    <span className="text-xs text-gray-500 ml-2">({subject.code})</span>
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{subject.name}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">({subject.code})</span>
                   </div>
                   {formData.subjects.includes(subject._id) && (
-                    <select
-                      value={formData.subjectTeacherAssignments[subject._id] || ''}
-                      onChange={(e) => handleSubjectTeacherAssignment(subject._id, e.target.value)}
-                      className="text-xs border border-gray-300 rounded px-2 py-1"
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.1 }}
+                      className="relative"
                     >
-                      <option value="">Select Teacher</option>
-                      {faculty
-                        .filter(teacher => teacher.subjects.some(subId => 
-                          (subId._id || subId) === subject._id
-                        ))
-                        .map(teacher => (
-                          <option key={teacher._id} value={teacher._id}>
-                            {teacher.name} ({teacher.department})
-                          </option>
-                        ))}
-                    </select>
+                      <select
+                        value={formData.subjectTeacherAssignments[subject._id] || ''}
+                        onChange={(e) => handleSubjectTeacherAssignment(subject._id, e.target.value)}
+                        className="w-full text-sm bg-white/95 dark:bg-slate-700/95 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 appearance-none"
+                      >
+                        <option value="" disabled>Select Teacher</option>
+                        {faculty
+                          .filter(teacher => teacher.subjects.some(subId => 
+                            (subId._id || subId) === subject._id
+                          ))
+                          .map(teacher => (
+                            <option key={teacher._id} value={teacher._id}>
+                              {teacher.name} ({teacher.department})
+                            </option>
+                          ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </motion.div>
                   )}
-                </div>
+                </motion.div>
               ))}
               {filteredSubjects.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-4">
+                <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
                   {formData.semester ? `No subjects found for semester ${formData.semester}` : 'No subjects available'}
                 </p>
               )}
             </div>
-          </div>
+          </motion.div>
 
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+          >
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
               Classrooms
             </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-3">
-              {classrooms.map((classroom) => (
-                <label key={classroom._id} className="flex items-center space-x-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-32 overflow-y-auto border border-slate-200 dark:border-slate-600 rounded-xl p-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
+              {classrooms.map((classroom, index) => (
+                <motion.label 
+                  key={classroom._id} 
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.9 + index * 0.05 }}
+                  className="flex items-center space-x-3 p-3 border border-slate-200 dark:border-slate-600 rounded-xl bg-white/80 dark:bg-slate-700/80 hover:bg-white dark:hover:bg-slate-700 transition-all duration-300 hover:shadow-md cursor-pointer"
+                >
                   <input
                     type="checkbox"
                     checked={formData.classrooms.includes(classroom._id)}
@@ -486,31 +566,40 @@ const Batches = () => {
                         : formData.classrooms.filter(id => id !== classroom._id);
                       handleMultiSelectChange('classrooms', newClassrooms);
                     }}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    className="w-5 h-5 rounded border-slate-300 dark:border-slate-500 text-blue-600 focus:ring-blue-500 focus:ring-2"
                   />
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
                     {classroom.name} ({classroom.capacity} seats, {classroom.type})
                   </span>
-                </label>
+                </motion.label>
               ))}
             </div>
-          </div>
+          </motion.div>
 
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <button
+          <motion.div 
+            className="flex justify-end space-x-4 pt-8 border-t border-slate-200 dark:border-slate-700"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.0 }}
+          >
+            <motion.button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="btn-secondary"
+              className="px-8 py-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               Cancel
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="submit"
-              className="btn-primary"
+              className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               {editingBatch ? 'Update Batch' : 'Create Batch'}
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         </form>
       </Modal>
     </div>

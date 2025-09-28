@@ -85,6 +85,25 @@ const Faculty = () => {
     }
   };
 
+  const handleBulkDelete = async (selectedFaculty) => {
+    const facultyNames = selectedFaculty.map(faculty => faculty.name).join(', ');
+
+    if (window.confirm(`Are you sure you want to delete ${selectedFaculty.length} faculty member(s)?\n\n${facultyNames}`)) {
+      try {
+        // Delete all selected faculty
+        const deletePromises = selectedFaculty.map(faculty => 
+          facultyAPI.delete(faculty._id)
+        );
+        await Promise.all(deletePromises);
+        await fetchData();
+        alert(`Successfully deleted ${selectedFaculty.length} faculty member(s)`);
+      } catch (error) {
+        console.error('Error deleting faculty:', error);
+        alert('Failed to delete some faculty members');
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -186,7 +205,7 @@ const Faculty = () => {
       accessor: 'maxLoadPerWeek',
       sortable: true,
       render: (faculty) => (
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-slate-600 dark:text-slate-300">
           {faculty.maxLoadPerWeek || 'N/A'} hours
         </span>
       ),
@@ -206,7 +225,7 @@ const Faculty = () => {
             </span>
           ))}
           {faculty.subjects?.length > 2 && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
               +{faculty.subjects.length - 2} more
             </span>
           )}
@@ -228,7 +247,7 @@ const Faculty = () => {
             </span>
           ))}
           {faculty.semestersTaught?.length > 3 && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
               +{faculty.semestersTaught.length - 3} more
             </span>
           )}
@@ -256,8 +275,8 @@ const Faculty = () => {
           <Users className="h-6 w-6 text-green-600" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Faculty</h1>
-          <p className="text-gray-600">Manage faculty members and their teaching assignments</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Faculty</h1>
+          <p className="text-slate-600 dark:text-slate-300">Manage faculty members and their teaching assignments</p>
         </div>
       </motion.div>
 
@@ -266,10 +285,12 @@ const Faculty = () => {
         columns={columns}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
         onCreate={handleCreate}
         title="All Faculty Members"
         loading={loading}
         emptyMessage="No faculty members found. Add your first faculty member to get started."
+        selectable={true}
       />
 
       <Modal
@@ -278,92 +299,122 @@ const Faculty = () => {
         title={editingFaculty ? 'Edit Faculty Member' : 'Add New Faculty Member'}
         size="large"
       >
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Full Name *
               </label>
               <input
                 type="text"
                 name="name"
                 required
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/95 dark:bg-slate-700/95 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="e.g., Dr. John Smith"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Email *
               </label>
               <input
                 type="email"
                 name="email"
                 required
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/95 dark:bg-slate-700/95 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="e.g., john.smith@university.edu"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Department
               </label>
               <input
                 type="text"
                 name="department"
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/95 dark:bg-slate-700/95 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.department}
                 onChange={handleInputChange}
                 placeholder="e.g., Computer Science"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Max Load Per Week (hours)
               </label>
               <input
                 type="number"
                 name="maxLoadPerWeek"
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/95 dark:bg-slate-700/95 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.maxLoadPerWeek}
                 onChange={handleInputChange}
                 placeholder="e.g., 40"
                 min="1"
                 max="60"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Average Leaves Per Month
               </label>
               <input
                 type="number"
                 name="averageLeavesPerMonth"
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/95 dark:bg-slate-700/95 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.averageLeavesPerMonth}
                 onChange={handleInputChange}
                 placeholder="e.g., 2"
                 min="0"
                 max="10"
               />
-            </div>
+            </motion.div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
               Teaching Subjects and Semesters
             </label>
-            <div className="space-y-3 max-h-64 overflow-y-auto border border-gray-300 rounded-lg p-3">
-              {filteredSubjects.map((subject) => (
-                <div key={subject._id} className="flex items-center space-x-3 p-2 border border-gray-200 rounded-lg">
+            <div className="space-y-3 max-h-64 overflow-y-auto border border-slate-200 dark:border-slate-600 rounded-xl p-4 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm">
+              {filteredSubjects.map((subject, index) => (
+                <motion.div 
+                  key={subject._id} 
+                  className="flex items-center space-x-4 p-4 border border-slate-200 dark:border-slate-600 rounded-xl bg-white/90 dark:bg-slate-700/90 hover:bg-white dark:hover:bg-slate-700 transition-all duration-300 hover:shadow-md"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.7 + index * 0.1 }}
+                >
                   <input
                     type="checkbox"
                     checked={formData.subjects.includes(subject._id)}
@@ -378,32 +429,41 @@ const Faculty = () => {
                         handleSubjectSemesterChange(subject._id, '');
                       }
                     }}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-500 text-blue-600 focus:ring-blue-500 focus:ring-2 bg-white dark:bg-slate-700"
                   />
                   <div className="flex-1">
-                    <span className="text-sm font-medium text-gray-700">{subject.name}</span>
-                    <span className="text-xs text-gray-500 ml-2">(Sem {subject.semester})</span>
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{subject.name}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">(Sem {subject.semester})</span>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
-          </div>
+          </motion.div>
 
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <button
+          <motion.div 
+            className="flex justify-end space-x-4 pt-8 border-t border-slate-200 dark:border-slate-700"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+          >
+            <motion.button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="btn-secondary"
+              className="px-8 py-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               Cancel
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="submit"
-              className="btn-primary"
+              className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               {editingFaculty ? 'Update Faculty' : 'Add Faculty'}
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         </form>
       </Modal>
     </div>

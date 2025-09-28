@@ -76,6 +76,25 @@ const Subjects = () => {
     }
   };
 
+  const handleBulkDelete = async (selectedSubjects) => {
+    const subjectNames = selectedSubjects.map(subject => subject.name).join(', ');
+
+    if (window.confirm(`Are you sure you want to delete ${selectedSubjects.length} subject(s)?\n\n${subjectNames}`)) {
+      try {
+        // Delete all selected subjects
+        const deletePromises = selectedSubjects.map(subject => 
+          subjectAPI.delete(subject._id)
+        );
+        await Promise.all(deletePromises);
+        await fetchData();
+        alert(`Successfully deleted ${selectedSubjects.length} subject(s)`);
+      } catch (error) {
+        console.error('Error deleting subjects:', error);
+        alert('Failed to delete some subjects');
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -115,7 +134,7 @@ const Subjects = () => {
       accessor: 'code',
       sortable: true,
       render: (subject) => (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
           {subject.code}
         </span>
       ),
@@ -132,7 +151,7 @@ const Subjects = () => {
       accessor: 'semester',
       sortable: true,
       render: (subject) => (
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-slate-600 dark:text-slate-300">
           {subject.semester ? `Sem ${subject.semester}` : 'N/A'}
         </span>
       ),
@@ -157,7 +176,7 @@ const Subjects = () => {
       accessor: 'requiredClassesPerWeek',
       sortable: true,
       render: (subject) => (
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-slate-600 dark:text-slate-300">
           {subject.requiredClassesPerWeek || 'N/A'}
         </span>
       ),
@@ -168,7 +187,7 @@ const Subjects = () => {
       accessor: 'maxClassesPerDay',
       sortable: true,
       render: (subject) => (
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-slate-600 dark:text-slate-300">
           {subject.maxClassesPerDay || 'N/A'}
         </span>
       ),
@@ -194,8 +213,8 @@ const Subjects = () => {
           <BookOpen className="h-6 w-6 text-purple-600" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Subjects</h1>
-          <p className="text-gray-600">Manage academic subjects and their scheduling requirements</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Subjects</h1>
+          <p className="text-slate-600 dark:text-slate-300">Manage academic subjects and their scheduling requirements</p>
         </div>
       </motion.div>
 
@@ -204,10 +223,12 @@ const Subjects = () => {
         columns={columns}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
         onCreate={handleCreate}
         title="All Subjects"
         loading={loading}
         emptyMessage="No subjects found. Add your first subject to get started."
+        selectable={true}
       />
 
       <Modal
@@ -216,133 +237,178 @@ const Subjects = () => {
         title={editingSubject ? 'Edit Subject' : 'Add New Subject'}
         size="medium"
       >
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Subject Name *
               </label>
               <input
                 type="text"
                 name="name"
                 required
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/95 dark:bg-slate-700/95 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="e.g., Data Structures and Algorithms"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Subject Code *
               </label>
               <input
                 type="text"
                 name="code"
                 required
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/95 dark:bg-slate-700/95 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.code}
                 onChange={handleInputChange}
                 placeholder="e.g., CS-301"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Department
               </label>
               <input
                 type="text"
                 name="department"
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/95 dark:bg-slate-700/95 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.department}
                 onChange={handleInputChange}
                 placeholder="e.g., Computer Science"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Semester *
               </label>
-              <select
-                name="semester"
-                required
-                className="input-field"
-                value={formData.semester}
-                onChange={handleInputChange}
-              >
-                <option value="">Select Semester</option>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
-                  <option key={sem} value={sem}>Semester {sem}</option>
-                ))}
-              </select>
-            </div>
+              <div className="relative">
+                <select
+                  name="semester"
+                  required
+                  className="w-full px-5 py-4 bg-white/95 dark:bg-slate-700/95 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 appearance-none"
+                  value={formData.semester}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Select Semester</option>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                    <option key={sem} value={sem}>Semester {sem}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Required Classes Per Week *
               </label>
               <input
                 type="number"
                 name="requiredClassesPerWeek"
                 required
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/95 dark:bg-slate-700/95 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.requiredClassesPerWeek}
                 onChange={handleInputChange}
                 placeholder="e.g., 3"
                 min="1"
                 max="10"
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
                 Max Classes Per Day
               </label>
               <input
                 type="number"
                 name="maxClassesPerDay"
-                className="input-field"
+                className="w-full px-5 py-4 bg-white/95 dark:bg-slate-700/95 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:shadow-md focus:shadow-lg backdrop-blur-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.maxClassesPerDay}
                 onChange={handleInputChange}
                 placeholder="e.g., 2"
                 min="1"
                 max="5"
               />
-            </div>
+            </motion.div>
           </div>
 
-          <div className="flex items-center">
+          <motion.div 
+            className="flex items-center p-4 border border-slate-200 dark:border-slate-600 rounded-xl bg-white/80 dark:bg-slate-700/80"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+          >
             <input
               type="checkbox"
               name="isElective"
               id="isElective"
               checked={formData.isElective}
               onChange={handleInputChange}
-              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-500 text-blue-600 focus:ring-blue-500 focus:ring-2 bg-white dark:bg-slate-700"
             />
-            <label htmlFor="isElective" className="ml-2 block text-sm text-gray-700">
+            <label htmlFor="isElective" className="ml-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
               This is an elective subject
             </label>
-          </div>
+          </motion.div>
 
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <button
+          <motion.div 
+            className="flex justify-end space-x-4 pt-8 border-t border-slate-200 dark:border-slate-700"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+          >
+            <motion.button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="btn-secondary"
+              className="px-8 py-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               Cancel
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="submit"
-              className="btn-primary"
+              className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               {editingSubject ? 'Update Subject' : 'Add Subject'}
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         </form>
       </Modal>
     </div>

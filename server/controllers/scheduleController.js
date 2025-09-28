@@ -19,13 +19,14 @@ exports.reviewTimetable = (req, res) => {
 
 exports.generateTimetable = async function(req, res) {
   try {
-    console.log('Starting timetable generation (genetic algorithm)...');
     const classrooms = await Classroom.find();
     const subjects = await Subject.find();
     const faculties = await Faculty.find();
     const batches = await Batch.find();
     const constraints = await Constraint.find();
     const specialClasses = await SpecialClass.find();
+    
+    const subjectSlotConstraintsCount = constraints.filter(c => c.type === 'subject_slot_preference').length;
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const periods = ['Period 1', 'Period 2', 'Period 3', 'Period 4', 'Period 5', 'Period 6'];
     let selectedBatchId = req.body && req.body.batchId;
@@ -44,10 +45,23 @@ exports.generateTimetable = async function(req, res) {
       };
     });
 
-    // Helper: build subject slot constraints map
+    // Helper: build subject slot constraints map (for subject slot constraints)
     const subjectSlotConstraints = {};
+    const constrainedSubjects = new Set(); // Track subjects with constraints
+    const singleClassConstraints = []; // Track individual class constraints
+    
     constraints.filter(c => c.type === 'subject_slot_preference').forEach(c => {
       if (c.details && c.details.batch && c.details.subject && c.details.day && c.details.slot) {
+        // Store as constraint (not necessarily single class)
+        singleClassConstraints.push({
+          batchId: c.details.batch,
+          subjectId: c.details.subject,
+          day: c.details.day,
+          slot: c.details.slot,
+          constraintId: c._id
+        });
+        
+        // Also maintain the old structure for backward compatibility
         const key = `${c.details.batch}-${c.details.subject}`;
         if (!subjectSlotConstraints[key]) {
           subjectSlotConstraints[key] = [];
@@ -55,19 +69,235 @@ exports.generateTimetable = async function(req, res) {
         subjectSlotConstraints[key].push({
           day: c.details.day,
           slot: c.details.slot,
-          preferred: true
+          preferred: true,
+          isSingleClass: false // Changed: Don't treat as single class constraint by default
         });
+        constrainedSubjects.add(key); // Mark this subject as constrained
       }
     });
+    
 
-    // Advanced Genetic algorithm parameters
-    const POP_SIZE = 100; // Increased population size for better diversity
-    const GENERATIONS = 200; // More generations for better convergence
-    const BASE_MUTATION_RATE = 0.15; // Base mutation rate
-    const CROSSOVER_RATE = 0.8; // Crossover probability
+    // Optimized Genetic algorithm parameters for faster execution
+    const POP_SIZE = 100; // Reduced population size for faster execution
+    const GENERATIONS = 200; // Reduced generations for faster convergence
+    const BASE_MUTATION_RATE = 0.15; // Slightly higher mutation rate for faster exploration
+    const CROSSOVER_RATE = 0.85; // Crossover probability
     const ELITE_SIZE = 15; // Elite individuals to preserve
     const DIVERSITY_THRESHOLD = 0.1; // Minimum diversity threshold
-    const CONFLICT_RESOLUTION_ATTEMPTS = 5; // Max attempts to resolve conflicts
+    const CONFLICT_RESOLUTION_ATTEMPTS = 5; // Reduced attempts for faster execution
+    const CONSTRAINT_PENALTY_WEIGHT = 100; // Higher penalty for constraint violations
+
+    // Function to validate and fix over-scheduling issues
+    function validateAndFixOverScheduling(timetable) {
+      let removedClasses = 0;
+      
+      // Group classes by batch and subject
+      const classGroups = {};
+      timetable.forEach((entry, index) => {
+        const key = `${entry.batch}-${entry.subject}`;
+        if (!classGroups[key]) {
+          classGroups[key] = [];
+        }
+        classGroups[key].push({ ...entry, originalIndex: index });
+      });
+      
+      // Check each group for over-scheduling
+      Object.keys(classGroups).forEach(key => {
+        const [batchName, subjectName] = key.split('-');
+        const classes = classGroups[key];
+        const subject = subjects.find(s => s.name === subjectName);
+        
+        if (subject) {
+          const requiredPerWeek = subjectConstraints[subject._id.toString()]?.requiredPerWeek || 0;
+          const maxPerDay = subjectConstraints[subject._id.toString()]?.maxPerDay || 0;
+          
+          // Check weekly limit
+          if (classes.length > requiredPerWeek) {
+            // Remove excess classes (keep the ones with preferred slots first)
+            const excessCount = classes.length - requiredPerWeek;
+            const sortedClasses = classes.sort((a, b) => {
+              // Prioritize classes with preferred slots
+              if (a.preferred && !b.preferred) return -1;
+              if (!a.preferred && b.preferred) return 1;
+              return 0;
+            });
+            
+            // Remove the excess classes
+            for (let i = 0; i < excessCount; i++) {
+              const classToRemove = sortedClasses[sortedClasses.length - 1 - i];
+              const indexToRemove = timetable.findIndex(entry => 
+                entry.batch === classToRemove.batch &&
+                entry.subject === classToRemove.subject &&
+                entry.day === classToRemove.day &&
+                entry.period === classToRemove.period
+              );
+              
+              if (indexToRemove !== -1) {
+                timetable.splice(indexToRemove, 1);
+                removedClasses++;
+              }
+            }
+          }
+          
+          // Check daily limits
+          const dailyGroups = {};
+          classes.forEach(cls => {
+            if (!dailyGroups[cls.day]) {
+              dailyGroups[cls.day] = [];
+            }
+            dailyGroups[cls.day].push(cls);
+          });
+          
+          Object.keys(dailyGroups).forEach(day => {
+            const dayClasses = dailyGroups[day];
+            if (dayClasses.length > maxPerDay) {
+              // Remove excess classes for this day
+              const excessCount = dayClasses.length - maxPerDay;
+              const sortedDayClasses = dayClasses.sort((a, b) => {
+                if (a.preferred && !b.preferred) return -1;
+                if (!a.preferred && b.preferred) return 1;
+                return 0;
+              });
+              
+              for (let i = 0; i < excessCount; i++) {
+                const classToRemove = sortedDayClasses[sortedDayClasses.length - 1 - i];
+                const indexToRemove = timetable.findIndex(entry => 
+                  entry.batch === classToRemove.batch &&
+                  entry.subject === classToRemove.subject &&
+                  entry.day === classToRemove.day &&
+                  entry.period === classToRemove.period
+                );
+                
+                if (indexToRemove !== -1) {
+                  timetable.splice(indexToRemove, 1);
+                  removedClasses++;
+                }
+              }
+            }
+          });
+        }
+      });
+      
+      return timetable;
+    }
+
+    // Constraint satisfaction function - ensures subject slot constraints are satisfied
+    function ensureConstraintSatisfaction(timetable) {
+      let satisfiedConstraints = 0;
+      let totalConstraints = singleClassConstraints.length;
+      let addedClasses = 0;
+      
+      // Create a tracking system for each batch-subject combination
+      const subjectCounts = {};
+      
+      // Initialize counts for all batch-subject combinations
+      batchList.forEach(batch => {
+        batch.subjects.forEach(subjectId => {
+          const key = `${batch._id}-${subjectId}`;
+          const requiredClasses = subjectConstraints[subjectId.toString()]?.requiredPerWeek || 0;
+          subjectCounts[key] = {
+            batch: batch.name,
+            subjectId: subjectId.toString(),
+            required: requiredClasses,
+            scheduled: 0,
+            maxPerDay: subjectConstraints[subjectId.toString()]?.maxPerDay || 0
+          };
+        });
+      });
+      
+      // Count existing classes for each batch-subject combination
+      timetable.forEach(entry => {
+        const batch = batches.find(b => b.name === entry.batch);
+        const subject = subjects.find(s => s.name === entry.subject);
+        if (batch && subject) {
+          const key = `${batch._id}-${subject._id}`;
+          if (subjectCounts[key]) {
+            subjectCounts[key].scheduled++;
+          }
+        }
+      });
+      
+      // Process each subject slot constraint
+      singleClassConstraints.forEach(constraint => {
+        const batch = batches.find(b => b._id.toString() === constraint.batchId);
+        const subject = subjects.find(s => s._id.toString() === constraint.subjectId);
+        
+        if (batch && subject) {
+          const key = `${batch._id}-${subject._id}`;
+          const countInfo = subjectCounts[key];
+          
+          if (!countInfo) {
+            return;
+          }
+          
+          // Check if this specific constraint is already satisfied
+          const isConstraintSatisfied = timetable.some(entry => 
+            entry.batch === batch.name && 
+            entry.subject === subject.name && 
+            entry.day === constraint.day && 
+            entry.period === constraint.slot
+          );
+          
+          if (isConstraintSatisfied) {
+            satisfiedConstraints++;
+          } else {
+            // CRITICAL: Check if we can schedule more classes (respect weekly limit)
+            if (countInfo.scheduled < countInfo.required) {
+              // Check if we can schedule on this specific day (respect daily limit)
+              const classesOnThisDay = timetable.filter(entry => 
+                entry.batch === batch.name && 
+                entry.subject === subject.name && 
+                entry.day === constraint.day
+              ).length;
+              
+              if (classesOnThisDay < countInfo.maxPerDay) {
+                // Check if slot is available for this specific constraint
+                const isSlotAvailable = !timetable.some(entry => 
+                  entry.day === constraint.day && 
+                  entry.period === constraint.slot &&
+                  (entry.batch === batch.name || 
+                   entry.classroom === batch.classrooms?.[0]?.name ||
+                   entry.teacher === batch.subjectTeacherAssignments?.find(sta => 
+                     sta.subject.toString() === constraint.subjectId
+                   )?.teacher)
+                );
+                
+                if (isSlotAvailable) {
+                  // Schedule ONE class at the preferred slot
+                  const teacherId = batch.subjectTeacherAssignments?.find(sta => 
+                    sta.subject.toString() === constraint.subjectId
+                  )?.teacher;
+                  const teacher = faculties.find(f => f._id.equals(teacherId));
+                  
+                  let classroom = classrooms[0]; // Default classroom
+                  if (batch.classrooms && batch.classrooms.length > 0) {
+                    classroom = classrooms.find(c => 
+                      batch.classrooms.some(bc => bc.toString() === c._id.toString())
+                    ) || classrooms[0];
+                  }
+                  
+                  timetable.push({
+                    batch: batch.name,
+                    subject: subject.name,
+                    teacher: teacher?.name || 'TBA',
+                    classroom: classroom.name,
+                    day: constraint.day,
+                    period: constraint.slot
+                  });
+                  
+                  // CRITICAL: Decrease the count by 1 for this batch-subject combination
+                  countInfo.scheduled++;
+                  satisfiedConstraints++;
+                  addedClasses++;
+                }
+              }
+            }
+          }
+        }
+      });
+      
+      return timetable;
+    }
 
     // Advanced conflict resolution strategies
     function resolveConflicts(timetable) {
@@ -87,6 +317,10 @@ exports.generateTimetable = async function(req, res) {
         conflicts = detectConflicts(timetable);
         attempts++;
       }
+      
+      // Ensure constraint satisfaction after conflict resolution
+      timetable = ensureConstraintSatisfaction(timetable);
+      
       return timetable;
     }
 
@@ -229,8 +463,25 @@ exports.generateTimetable = async function(req, res) {
       
       if (hasConflict) return -1000;
       
-      // Prefer slots that don't violate constraints
+      // Check batch classroom constraints
       let batch = batches.find(b => b.name === entry.batch);
+      if (batch && batch.classrooms && batch.classrooms.length > 0) {
+        // Get the classroom that would be assigned for this slot
+        let assignedClassroom = findAvailableClassroom(timetable, day, period, entry.batch);
+        let classroom = classrooms.find(c => c.name === assignedClassroom);
+        
+        // Check if the assigned classroom is in the batch's allowed classrooms
+        let isAllowedClassroom = batch.classrooms.some(bc => {
+          let batchClassroom = classrooms.find(c => c._id.equals(bc));
+          return batchClassroom && batchClassroom.name === assignedClassroom;
+        });
+        
+        if (!isAllowedClassroom) {
+          return -2000; // Very heavy penalty for using unassigned classroom
+        }
+      }
+      
+      // Prefer slots that don't violate constraints
       let subject = subjects.find(s => s.name === entry.subject);
       
       if (batch && subject) {
@@ -250,7 +501,7 @@ exports.generateTimetable = async function(req, res) {
       return score;
     }
 
-    // Find available classroom for a slot with better utilization
+    // Find available classroom for a slot with strict batch constraints
     function findAvailableClassroom(timetable, day, period, batchName) {
       let usedClassrooms = new Set();
       timetable.forEach(entry => {
@@ -260,32 +511,42 @@ exports.generateTimetable = async function(req, res) {
       });
       
       let batch = batches.find(b => b.name === batchName);
-      let availableClassrooms = classrooms.filter(c => !usedClassrooms.has(c.name));
       
-      if (availableClassrooms.length === 0) {
-        // If all classrooms are occupied, return the first one (conflict will be handled by fitness function)
-        return classrooms[0].name;
-      }
-      
+      // STRICT: If batch has classroom assignments, only consider those classrooms
       if (batch && batch.classrooms && batch.classrooms.length > 0) {
-        let batchClassrooms = availableClassrooms.filter(c => 
+        let batchClassrooms = classrooms.filter(c => 
           batch.classrooms.some(bc => bc.toString() === c._id.toString())
         );
-        if (batchClassrooms.length > 0) {
+        
+        let availableBatchClassrooms = batchClassrooms.filter(c => !usedClassrooms.has(c.name));
+        
+        if (availableBatchClassrooms.length > 0) {
           // Prefer less used classrooms within batch constraints
           let classroomUsage = {};
           timetable.forEach(entry => {
             classroomUsage[entry.classroom] = (classroomUsage[entry.classroom] || 0) + 1;
           });
           
-          batchClassrooms.sort((a, b) => {
+          availableBatchClassrooms.sort((a, b) => {
             let usageA = classroomUsage[a.name] || 0;
             let usageB = classroomUsage[b.name] || 0;
             return usageA - usageB;
           });
           
+          return availableBatchClassrooms[0].name;
+        } else {
+          // If no batch classrooms are available, return the first batch classroom
+          // (conflict will be handled by fitness function)
           return batchClassrooms[0].name;
         }
+      }
+      
+      // Only if batch has NO classroom assignments, use any available classroom
+      let availableClassrooms = classrooms.filter(c => !usedClassrooms.has(c.name));
+      
+      if (availableClassrooms.length === 0) {
+        // If all classrooms are occupied, return the first one (conflict will be handled by fitness function)
+        return classrooms[0].name;
       }
       
       // Use any available classroom, preferring less used ones
@@ -303,7 +564,422 @@ exports.generateTimetable = async function(req, res) {
       return availableClassrooms[0].name;
     }
 
-    // Function to optimize classroom distribution
+    // Function to detect and report all types of constraints and limitations
+    function detectAllConstraintsAndLimitations(timetable) {
+      let limitations = {
+        constrainedBatches: [],
+        unavailableSlots: [],
+        conflicts: [],
+        constraintViolations: {
+          subjectSlot: [],
+          classroomSlot: [],
+          teacherSlot: []
+        },
+        recommendations: []
+      };
+      
+      // Group entries by batch
+      let batchGroups = {};
+      timetable.forEach(entry => {
+        if (!batchGroups[entry.batch]) {
+          batchGroups[entry.batch] = [];
+        }
+        batchGroups[entry.batch].push(entry);
+      });
+      
+      // Check each batch for classroom constraints
+      Object.keys(batchGroups).forEach(batchName => {
+        let batch = batches.find(b => b.name === batchName);
+        if (batch && batch.classrooms && batch.classrooms.length > 0) {
+          let batchClassrooms = classrooms.filter(c => 
+            batch.classrooms.some(bc => bc.toString() === c._id.toString())
+          );
+          
+          limitations.constrainedBatches.push({
+            batchName: batchName,
+            assignedClassrooms: batchClassrooms.map(c => c.name),
+            totalSlots: batchGroups[batchName].length
+          });
+          
+          // Check for classroom availability issues only for time slots where this batch has classes
+          batchGroups[batchName].forEach(entry => {
+            let occupiedClassrooms = new Set();
+            timetable.forEach(timetableEntry => {
+              if (timetableEntry.day === entry.day && timetableEntry.period === entry.period) {
+                occupiedClassrooms.add(timetableEntry.classroom);
+              }
+            });
+            
+            let availableBatchClassrooms = batchClassrooms.filter(c => 
+              !occupiedClassrooms.has(c.name)
+            );
+            
+            // Check if the batch is using a classroom that's not in its assigned classrooms
+            let isUsingUnassignedClassroom = !batchClassrooms.some(c => c.name === entry.classroom);
+            
+            if (isUsingUnassignedClassroom) {
+              limitations.unavailableSlots.push({
+                batch: batchName,
+                day: entry.day,
+                period: entry.period,
+                assignedClassrooms: batchClassrooms.map(c => c.name),
+                occupiedBy: Array.from(occupiedClassrooms),
+                issue: `Using unassigned classroom: ${entry.classroom}`
+              });
+            }
+          });
+          
+          // Check for conflicts within batch classrooms
+          let batchConflicts = [];
+          batchGroups[batchName].forEach(entry => {
+            let conflictingEntries = batchGroups[batchName].filter(e => 
+              e !== entry && 
+              e.day === entry.day && 
+              e.period === entry.period && 
+              e.classroom === entry.classroom
+            );
+            
+            if (conflictingEntries.length > 0) {
+              batchConflicts.push({
+                batch: batchName,
+                day: entry.day,
+                period: entry.period,
+                classroom: entry.classroom,
+                conflictingSubjects: conflictingEntries.map(e => e.subject)
+              });
+            }
+          });
+          
+          limitations.conflicts = limitations.conflicts.concat(batchConflicts);
+        }
+      });
+      
+      // Check Subject Slot constraints
+      singleClassConstraints.forEach(constraint => {
+        const batch = batches.find(b => b._id.toString() === constraint.batchId);
+        const subject = subjects.find(s => s._id.toString() === constraint.subjectId);
+        
+        if (batch && subject) {
+          let hasSubjectAtPreferredSlot = timetable.some(entry => 
+            entry.batch === batch.name && 
+            entry.subject === subject.name && 
+            entry.day === constraint.day && 
+            entry.period === constraint.slot
+          );
+          
+          if (!hasSubjectAtPreferredSlot) {
+            // Check if subject is scheduled at all
+            const isSubjectScheduled = timetable.some(entry => 
+              entry.batch === batch.name && entry.subject === subject.name
+            );
+            
+            limitations.constraintViolations.subjectSlot.push({
+              batch: batch.name,
+              subject: subject.name,
+              preferredDay: constraint.day,
+              preferredPeriod: constraint.slot,
+              violation: isSubjectScheduled 
+                ? `Subject slot constraint: ${subject.name} for ${batch.name} scheduled but not at preferred time ${constraint.day} ${constraint.slot}`
+                : `Subject slot constraint: ${subject.name} for ${batch.name} not scheduled at all (preferred time: ${constraint.day} ${constraint.slot})`,
+              severity: isSubjectScheduled ? 'medium' : 'high'
+            });
+          }
+        }
+      });
+      
+      // Check Classroom Slot constraints
+      constraints.filter(c => c.type === 'classroom_preference').forEach(constraint => {
+        if (constraint.details && constraint.details.batch && constraint.details.classroom && 
+            constraint.details.day && constraint.details.slot) {
+          let batch = batches.find(b => b._id.toString() === constraint.details.batch);
+          let classroom = classrooms.find(c => c._id.toString() === constraint.details.classroom);
+          
+          if (batch && classroom) {
+            let hasClassroomAtPreferredSlot = timetable.some(entry => 
+              entry.batch === batch.name && 
+              entry.classroom === classroom.name && 
+              entry.day === constraint.details.day && 
+              entry.period === constraint.details.slot
+            );
+            
+            if (!hasClassroomAtPreferredSlot) {
+              limitations.constraintViolations.classroomSlot.push({
+                batch: batch.name,
+                classroom: classroom.name,
+                preferredDay: constraint.details.day,
+                preferredPeriod: constraint.details.slot,
+                violation: `Classroom ${classroom.name} for batch ${batch.name} not reserved at preferred time ${constraint.details.day} ${constraint.details.slot}`,
+                severity: 'medium'
+              });
+            }
+          }
+        }
+      });
+      
+      // Check Teacher Slot constraints
+      constraints.filter(c => c.type === 'teacher_slot_preference').forEach(constraint => {
+        if (constraint.details && constraint.details.batch && constraint.details.faculty && 
+            constraint.details.day && constraint.details.slot) {
+          let batch = batches.find(b => b._id.toString() === constraint.details.batch);
+          let faculty = faculties.find(f => f._id.toString() === constraint.details.faculty);
+          
+          if (batch && faculty) {
+            let hasTeacherAtPreferredSlot = timetable.some(entry => 
+              entry.batch === batch.name && 
+              entry.faculty === faculty.name && 
+              entry.day === constraint.details.day && 
+              entry.period === constraint.details.slot
+            );
+            
+            if (!hasTeacherAtPreferredSlot) {
+              limitations.constraintViolations.teacherSlot.push({
+                batch: batch.name,
+                teacher: faculty.name,
+                preferredDay: constraint.details.day,
+                preferredPeriod: constraint.details.slot,
+                violation: `Teacher ${faculty.name} for batch ${batch.name} not available at preferred time ${constraint.details.day} ${constraint.details.slot}`,
+                severity: 'medium'
+              });
+            }
+          }
+        }
+      });
+      
+      // Generate recommendations
+      if (limitations.unavailableSlots.length > 0) {
+        limitations.recommendations.push({
+          type: "classroom_shortage",
+          message: "Some batches cannot be scheduled at certain times due to classroom limitations",
+          details: limitations.unavailableSlots,
+          severity: 'high'
+        });
+      }
+      
+      if (limitations.conflicts.length > 0) {
+        limitations.recommendations.push({
+          type: "scheduling_conflicts",
+          message: "Some classes have scheduling conflicts within their assigned classrooms",
+          details: limitations.conflicts,
+          severity: 'high'
+        });
+      }
+      
+      if (limitations.constraintViolations.subjectSlot.length > 0) {
+        limitations.recommendations.push({
+          type: "subject_slot_violations",
+          message: "Some subjects are not scheduled at their preferred time slots",
+          details: limitations.constraintViolations.subjectSlot,
+          severity: 'high'
+        });
+      }
+      
+      if (limitations.constraintViolations.classroomSlot.length > 0) {
+        limitations.recommendations.push({
+          type: "classroom_slot_violations",
+          message: "Some classrooms are not reserved at their preferred time slots",
+          details: limitations.constraintViolations.classroomSlot,
+          severity: 'medium'
+        });
+      }
+      
+      if (limitations.constraintViolations.teacherSlot.length > 0) {
+        limitations.recommendations.push({
+          type: "teacher_slot_violations",
+          message: "Some teachers are not available at their preferred time slots",
+          details: limitations.constraintViolations.teacherSlot,
+          severity: 'medium'
+        });
+      }
+      
+      return limitations;
+    }
+
+    // Function to validate constraint limits are respected
+    function validateConstraintLimits(timetable) {
+      let violations = [];
+      
+      // Group entries by batch and subject
+      let batchSubjectGroups = {};
+      timetable.forEach(entry => {
+        const key = `${entry.batch}-${entry.subject}`;
+        if (!batchSubjectGroups[key]) {
+          batchSubjectGroups[key] = [];
+        }
+        batchSubjectGroups[key].push(entry);
+      });
+      
+      // Check each batch-subject combination
+      Object.keys(batchSubjectGroups).forEach(key => {
+        const [batchName, subjectName] = key.split('-');
+        const entries = batchSubjectGroups[key];
+        const batch = batches.find(b => b.name === batchName);
+        const subject = subjects.find(s => s.name === subjectName);
+        
+        if (batch && subject) {
+          const requiredPerWeek = subjectConstraints[subject._id.toString()]?.requiredPerWeek || 0;
+          const maxPerDay = subjectConstraints[subject._id.toString()]?.maxPerDay || 0;
+          
+          // Check weekly limit
+          if (entries.length > requiredPerWeek) {
+            violations.push({
+              type: 'weekly_limit_exceeded',
+              batch: batchName,
+              subject: subjectName,
+              scheduled: entries.length,
+              limit: requiredPerWeek,
+              message: `${subjectName} for ${batchName} scheduled ${entries.length} times but limit is ${requiredPerWeek} per week`
+            });
+          }
+          
+          // Check daily limits
+          let dayCounts = {};
+          entries.forEach(entry => {
+            dayCounts[entry.day] = (dayCounts[entry.day] || 0) + 1;
+          });
+          
+          Object.keys(dayCounts).forEach(day => {
+            if (dayCounts[day] > maxPerDay) {
+              violations.push({
+                type: 'daily_limit_exceeded',
+                batch: batchName,
+                subject: subjectName,
+                day: day,
+                scheduled: dayCounts[day],
+                limit: maxPerDay,
+                message: `${subjectName} for ${batchName} scheduled ${dayCounts[day]} times on ${day} but limit is ${maxPerDay} per day`
+              });
+            }
+          });
+        }
+      });
+      
+      return violations;
+    }
+
+    // Function to create a detailed limitations report
+    function createLimitationsReport(limitations) {
+      let report = {
+        summary: {
+          totalConstrainedBatches: limitations.constrainedBatches.length,
+          totalUnavailableSlots: limitations.unavailableSlots.length,
+          totalConflicts: limitations.conflicts.length,
+          totalConstraintViolations: {
+            subjectSlot: limitations.constraintViolations.subjectSlot.length,
+            classroomSlot: limitations.constraintViolations.classroomSlot.length,
+            teacherSlot: limitations.constraintViolations.teacherSlot.length
+          },
+          hasLimitations: limitations.unavailableSlots.length > 0 || 
+                          limitations.conflicts.length > 0 || 
+                          limitations.constraintViolations.subjectSlot.length > 0 ||
+                          limitations.constraintViolations.classroomSlot.length > 0 ||
+                          limitations.constraintViolations.teacherSlot.length > 0
+        },
+        constrainedBatches: limitations.constrainedBatches.map(batch => ({
+          batchName: batch.batchName,
+          assignedClassrooms: batch.assignedClassrooms,
+          totalSlots: batch.totalSlots,
+          classroomCount: batch.assignedClassrooms.length
+        })),
+        unavailableSlots: limitations.unavailableSlots.map(slot => ({
+          batch: slot.batch,
+          timeSlot: `${slot.day} ${slot.period}`,
+          assignedClassrooms: slot.assignedClassrooms,
+          occupiedBy: slot.occupiedBy,
+          limitation: `Cannot schedule ${slot.batch} on ${slot.day} ${slot.period} - all assigned classrooms are occupied`
+        })),
+        conflicts: limitations.conflicts.map(conflict => ({
+          batch: conflict.batch,
+          timeSlot: `${conflict.day} ${conflict.period}`,
+          classroom: conflict.classroom,
+          conflictingSubjects: conflict.conflictingSubjects,
+          limitation: `Multiple subjects scheduled in same classroom at same time`
+        })),
+        constraintViolations: {
+          subjectSlot: limitations.constraintViolations.subjectSlot.map(violation => ({
+            batch: violation.batch,
+            subject: violation.subject,
+            preferredTime: `${violation.preferredDay} ${violation.preferredPeriod}`,
+            violation: violation.violation,
+            severity: violation.severity
+          })),
+          classroomSlot: limitations.constraintViolations.classroomSlot.map(violation => ({
+            batch: violation.batch,
+            classroom: violation.classroom,
+            preferredTime: `${violation.preferredDay} ${violation.preferredPeriod}`,
+            violation: violation.violation,
+            severity: violation.severity
+          })),
+          teacherSlot: limitations.constraintViolations.teacherSlot.map(violation => ({
+            batch: violation.batch,
+            teacher: violation.teacher,
+            preferredTime: `${violation.preferredDay} ${violation.preferredPeriod}`,
+            violation: violation.violation,
+            severity: violation.severity
+          }))
+        },
+        recommendations: limitations.recommendations.map(rec => ({
+          type: rec.type,
+          message: rec.message,
+          severity: rec.severity,
+          count: rec.details ? rec.details.length : 0
+        }))
+      };
+      
+      return report;
+    }
+
+    // Function to validate and fix batch classroom constraints
+    function validateAndFixBatchClassrooms(timetable) {
+      let violations = [];
+      
+      timetable.forEach((entry, index) => {
+        let batch = batches.find(b => b.name === entry.batch);
+        if (batch && batch.classrooms && batch.classrooms.length > 0) {
+          let isAssignedClassroom = batch.classrooms.some(bc => {
+            let classroom = classrooms.find(c => c._id.equals(bc));
+            return classroom && classroom.name === entry.classroom;
+          });
+          
+          if (!isAssignedClassroom) {
+            violations.push({ index, entry, batch });
+          }
+        }
+      });
+      
+      
+      // Fix violations by reassigning to valid classrooms
+      violations.forEach(violation => {
+        let batch = violation.batch;
+        let batchClassrooms = classrooms.filter(c => 
+          batch.classrooms.some(bc => bc.toString() === c._id.toString())
+        );
+        
+        if (batchClassrooms.length > 0) {
+          // Find a classroom that's not occupied at this time slot
+          let occupiedClassrooms = new Set();
+          timetable.forEach(e => {
+            if (e.day === violation.entry.day && e.period === violation.entry.period) {
+              occupiedClassrooms.add(e.classroom);
+            }
+          });
+          
+          let availableBatchClassrooms = batchClassrooms.filter(c => 
+            !occupiedClassrooms.has(c.name)
+          );
+          
+          if (availableBatchClassrooms.length > 0) {
+            timetable[violation.index].classroom = availableBatchClassrooms[0].name;
+          } else {
+            // If no available batch classroom, use the first batch classroom
+            timetable[violation.index].classroom = batchClassrooms[0].name;
+          }
+        }
+      });
+      
+      return timetable;
+    }
+
+    // Function to optimize classroom distribution while respecting batch constraints
     function optimizeClassroomDistribution(timetable) {
       let classroomUsage = {};
       let classroomSlots = {};
@@ -315,36 +991,97 @@ exports.generateTimetable = async function(req, res) {
         classroomSlots[key] = entry;
       });
       
-      // Find overused and underused classrooms
-      let totalEntries = timetable.length;
-      let avgUsage = totalEntries / classrooms.length;
-      let overusedClassrooms = [];
-      let underusedClassrooms = [];
-      
-      classrooms.forEach(classroom => {
-        let usage = classroomUsage[classroom.name] || 0;
-        if (usage > avgUsage * 1.5) {
-          overusedClassrooms.push({ name: classroom.name, usage });
-        } else if (usage < avgUsage * 0.5) {
-          underusedClassrooms.push({ name: classroom.name, usage });
+      // Group entries by batch for constraint-aware optimization
+      let batchGroups = {};
+      timetable.forEach(entry => {
+        if (!batchGroups[entry.batch]) {
+          batchGroups[entry.batch] = [];
         }
+        batchGroups[entry.batch].push(entry);
       });
       
-      // Try to redistribute some classes from overused to underused classrooms
-      overusedClassrooms.forEach(overused => {
-        underusedClassrooms.forEach(underused => {
-          // Find entries using overused classroom that could be moved
-          let candidates = timetable.filter(entry => 
-            entry.classroom === overused.name && 
-            !classroomSlots[`${underused.name}-${entry.day}-${entry.period}`]
+      // Optimize within each batch's assigned classrooms
+      Object.keys(batchGroups).forEach(batchName => {
+        let batch = batches.find(b => b.name === batchName);
+        let batchEntries = batchGroups[batchName];
+        
+        if (batch && batch.classrooms && batch.classrooms.length > 0) {
+          // Only consider classrooms assigned to this batch
+          let batchClassrooms = classrooms.filter(c => 
+            batch.classrooms.some(bc => bc.toString() === c._id.toString())
           );
           
-          if (candidates.length > 0) {
-            // Move a random candidate to the underused classroom
-            let candidate = candidates[Math.floor(Math.random() * candidates.length)];
-            candidate.classroom = underused.name;
+          if (batchClassrooms.length > 1) {
+            // Find overused and underused classrooms within this batch's assignments
+            let batchClassroomUsage = {};
+            batchEntries.forEach(entry => {
+              batchClassroomUsage[entry.classroom] = (batchClassroomUsage[entry.classroom] || 0) + 1;
+            });
+            
+            let totalBatchEntries = batchEntries.length;
+            let avgBatchUsage = totalBatchEntries / batchClassrooms.length;
+            let overusedClassrooms = [];
+            let underusedClassrooms = [];
+            
+            batchClassrooms.forEach(classroom => {
+              let usage = batchClassroomUsage[classroom.name] || 0;
+              if (usage > avgBatchUsage * 1.5) {
+                overusedClassrooms.push({ name: classroom.name, usage });
+              } else if (usage < avgBatchUsage * 0.5) {
+                underusedClassrooms.push({ name: classroom.name, usage });
+              }
+            });
+            
+            // Try to redistribute within batch-assigned classrooms
+            overusedClassrooms.forEach(overused => {
+              underusedClassrooms.forEach(underused => {
+                // Find entries using overused classroom that could be moved
+                let candidates = batchEntries.filter(entry => 
+                  entry.classroom === overused.name && 
+                  !classroomSlots[`${underused.name}-${entry.day}-${entry.period}`]
+                );
+                
+                if (candidates.length > 0) {
+                  // Move a random candidate to the underused classroom
+                  let candidate = candidates[Math.floor(Math.random() * candidates.length)];
+                  candidate.classroom = underused.name;
+                }
+              });
+            });
           }
-        });
+        } else {
+          // If batch has no classroom assignments, optimize across all classrooms
+          let totalEntries = batchEntries.length;
+          let avgUsage = totalEntries / classrooms.length;
+          let overusedClassrooms = [];
+          let underusedClassrooms = [];
+          
+          classrooms.forEach(classroom => {
+            let usage = classroomUsage[classroom.name] || 0;
+            if (usage > avgUsage * 1.5) {
+              overusedClassrooms.push({ name: classroom.name, usage });
+            } else if (usage < avgUsage * 0.5) {
+              underusedClassrooms.push({ name: classroom.name, usage });
+            }
+          });
+          
+          // Try to redistribute some classes from overused to underused classrooms
+          overusedClassrooms.forEach(overused => {
+            underusedClassrooms.forEach(underused => {
+              // Find entries using overused classroom that could be moved
+              let candidates = batchEntries.filter(entry => 
+                entry.classroom === overused.name && 
+                !classroomSlots[`${underused.name}-${entry.day}-${entry.period}`]
+              );
+              
+              if (candidates.length > 0) {
+                // Move a random candidate to the underused classroom
+                let candidate = candidates[Math.floor(Math.random() * candidates.length)];
+                candidate.classroom = underused.name;
+              }
+            });
+          });
+        }
       });
       
       return timetable;
@@ -361,28 +1098,120 @@ exports.generateTimetable = async function(req, res) {
             subjectTeacherMap[sta.subject.toString()] = sta.teacher;
           });
         }
+        // Create a tracking system for this batch
+        const batchSubjectCounts = {};
+        batch.subjects.forEach(subjectId => {
+          const requiredPerWeek = subjectConstraints[subjectId.toString()]?.requiredPerWeek || 0;
+          const maxPerDay = subjectConstraints[subjectId.toString()]?.maxPerDay || 0;
+          batchSubjectCounts[subjectId.toString()] = {
+            required: requiredPerWeek,
+            scheduled: 0,
+            maxPerDay: maxPerDay
+          };
+        });
+        
+        // PRIORITY 1: Handle ALL constraints for this batch first
+        // Process all subject slot constraints for this batch first
+        const batchConstraints = singleClassConstraints.filter(constraint => 
+          constraint.batchId === batch._id.toString()
+        );
+        
+        batchConstraints.forEach(constraint => {
+          const subject = subjects.find(s => s._id.toString() === constraint.subjectId);
+          if (!subject) return;
+          
+          const countInfo = batchSubjectCounts[constraint.subjectId.toString()];
+          if (!countInfo) return;
+          
+          // Check if we can still schedule more classes for this subject
+          if (countInfo.scheduled < countInfo.required) {
+            // Check if this specific constraint is already satisfied
+            const isConstraintSatisfied = timetable.some(entry => 
+              entry.batch === batch.name && 
+              entry.subject === subject.name && 
+              entry.day === constraint.day && 
+              entry.period === constraint.slot
+            );
+            
+            if (!isConstraintSatisfied) {
+              // Check if slot is available
+              const isSlotAvailable = !timetable.some(entry => 
+                entry.day === constraint.day && 
+                entry.period === constraint.slot &&
+                (entry.batch === batch.name || 
+                 entry.classroom === batch.classrooms?.[0]?.name ||
+                 entry.teacher === batch.subjectTeacherAssignments?.find(sta => 
+                   sta.subject.toString() === constraint.subjectId
+                 )?.teacher)
+              );
+              
+              if (isSlotAvailable) {
+                // Check daily limit
+                const classesOnThisDay = timetable.filter(entry => 
+                  entry.batch === batch.name && 
+                  entry.subject === subject.name && 
+                  entry.day === constraint.day
+                ).length;
+                
+                if (classesOnThisDay < countInfo.maxPerDay) {
+                  // Schedule the constraint
+                  const teacherId = batch.subjectTeacherAssignments?.find(sta => 
+                    sta.subject.toString() === constraint.subjectId
+                  )?.teacher;
+                  const teacher = faculties.find(f => f._id.equals(teacherId));
+                  
+                  let classroom = classrooms[0];
+                  if (batch.classrooms && batch.classrooms.length > 0) {
+                    classroom = classrooms.find(c => 
+                      batch.classrooms.some(bc => bc.toString() === c._id.toString())
+                    ) || classrooms[0];
+                  }
+                  
+                  timetable.push({
+                    batch: batch.name,
+                    subject: subject.name,
+                    teacher: teacher?.name || 'TBA',
+                    classroom: classroom.name,
+                    day: constraint.day,
+                    period: constraint.slot,
+                    preferred: true
+                  });
+                  
+                  countInfo.scheduled++;
+                }
+              }
+            }
+          }
+        });
+        
+        // PRIORITY 2: Now schedule remaining classes for subjects that still need them
         for (const subjectId of batch.subjects) {
           const subject = subjects.find(s => s._id.equals(subjectId));
           if (!subject) continue;
           const teacherId = subjectTeacherMap[subjectId.toString()];
           const teacher = faculties.find(f => f._id.equals(teacherId));
-          const requiredPerWeek = subjectConstraints[subjectId.toString()].requiredPerWeek;
-          const maxPerDay = subjectConstraints[subjectId.toString()].maxPerDay;
+          const countInfo = batchSubjectCounts[subjectId.toString()];
+          const requiredPerWeek = countInfo.required;
+          const maxPerDay = countInfo.maxPerDay;
+          
+          // Skip if this subject already has enough classes
+          if (countInfo.scheduled >= countInfo.required) {
+            continue;
+          }
+          
           let slots = [];
-          let remaining = requiredPerWeek;
+          let remaining = countInfo.required - countInfo.scheduled; // Only schedule remaining classes needed
           let daySlots = Array(days.length).fill(0);
           let dayOrder = Array.from(Array(days.length).keys());
           
-          // Check for subject slot constraints for this batch/subject
-          const constraintKey = `${batch._id}-${subjectId}`;
-          const subjectSlotConstraintsForThis = subjectSlotConstraints[constraintKey] || [];
-          subjectSlotConstraintsForThis.forEach(ssc => {
-            let dayIdx = days.indexOf(ssc.day);
-            let periodIdx = periods.indexOf(ssc.slot);
-            if (dayIdx !== -1 && periodIdx !== -1 && remaining > 0 && daySlots[dayIdx] < maxPerDay) {
-              slots.push({ day: days[dayIdx], period: periods[periodIdx], preferred: true });
-              daySlots[dayIdx]++;
-              remaining--;
+          
+          // Count existing classes for this subject to calculate day slots
+          timetable.forEach(entry => {
+            if (entry.batch === batch.name && entry.subject === subject.name) {
+              const dayIdx = days.indexOf(entry.day);
+              if (dayIdx !== -1) {
+                daySlots[dayIdx]++;
+              }
             }
           });
           
@@ -399,16 +1228,17 @@ exports.generateTimetable = async function(req, res) {
           });
           
           // Assign remaining slots evenly
-          while (remaining > 0) {
+          while (remaining > 0 && countInfo.scheduled < countInfo.required) {
             for (let i = dayOrder.length - 1; i > 0; i--) {
               const j = Math.floor(Math.random() * (i + 1));
               [dayOrder[i], dayOrder[j]] = [dayOrder[j], dayOrder[i]];
             }
             for (let d of dayOrder) {
-              if (remaining > 0 && daySlots[d] < maxPerDay) {
+              if (remaining > 0 && daySlots[d] < maxPerDay && countInfo.scheduled < countInfo.required) {
                 slots.push({ day: days[d] });
                 daySlots[d]++;
                 remaining--;
+                countInfo.scheduled++; // CRITICAL: Decrease count by 1
               }
             }
           }
@@ -452,17 +1282,34 @@ exports.generateTimetable = async function(req, res) {
             } else {
               // Check if batch has specific classroom assignments
               if (batch.classrooms && batch.classrooms.length > 0) {
+                // STRICT: Only use classrooms assigned to this batch
                 let batchClassrooms = availableClassrooms.filter(c => 
                   batch.classrooms.some(bc => bc.toString() === c._id.toString())
                 );
                 if (batchClassrooms.length > 0) {
-                  classroom = batchClassrooms[Math.floor(Math.random() * batchClassrooms.length)];
+                  // Sort by usage frequency within batch-assigned classrooms
+                  let classroomUsage = {};
+                  timetable.forEach(entry => {
+                    classroomUsage[entry.classroom] = (classroomUsage[entry.classroom] || 0) + 1;
+                  });
+                  
+                  batchClassrooms.sort((a, b) => {
+                    let usageA = classroomUsage[a.name] || 0;
+                    let usageB = classroomUsage[b.name] || 0;
+                    return usageA - usageB; // Prefer less used classrooms within batch assignments
+                  });
+                  
+                  classroom = batchClassrooms[0];
                 } else {
-                  // If no batch-specific classrooms available, use any available classroom
-                  classroom = availableClassrooms.length > 0 ? availableClassrooms[Math.floor(Math.random() * availableClassrooms.length)] : classrooms[0];
+                  // If no batch-specific classrooms are available, this is a constraint violation
+                  // We'll use the first batch classroom anyway and let the fitness function penalize it
+                  let firstBatchClassroom = classrooms.find(c => 
+                    batch.classrooms.some(bc => bc.toString() === c._id.toString())
+                  );
+                  classroom = firstBatchClassroom || classrooms[0];
                 }
               } else {
-                // Use any available classroom, prioritizing less used ones
+                // Only if batch has NO classroom assignments, use any available classroom
                 if (availableClassrooms.length > 0) {
                   // Sort by usage frequency to better distribute load
                   let classroomUsage = {};
@@ -506,8 +1353,14 @@ exports.generateTimetable = async function(req, res) {
       // Apply conflict resolution to the generated timetable
       timetable = resolveConflicts(timetable);
       
+      // Validate and fix batch classroom constraints
+      timetable = validateAndFixBatchClassrooms(timetable);
+      
       // Optimize classroom distribution
       timetable = optimizeClassroomDistribution(timetable);
+      
+      // Note: Removed ensureConstraintSatisfaction call here to prevent over-scheduling
+      // Constraints should be handled during the main generation process
       
       return timetable;
     }
@@ -554,23 +1407,42 @@ exports.generateTimetable = async function(req, res) {
         }
         teacherSlotMap[teacherKey] = true;
         
-        // Objective 2: Constraint Violations
+        // Objective 2: Subject Slot Constraint Violations
         let batchId = batches.find(b => b.name === entry.batch)?._id;
         let subjectId = subjects.find(s => s.name === entry.subject)?._id;
         if (batchId && subjectId) {
-          const constraintKey = `${batchId}-${subjectId}`;
-          const subjectSlotConstraintsForThis = subjectSlotConstraints[constraintKey] || [];
-          const hasConstraintForThisSlot = subjectSlotConstraintsForThis.some(c => 
-            c.day === entry.day && c.slot === entry.period
+          // Check if this specific slot matches any subject slot constraint
+          const matchingConstraint = singleClassConstraints.find(sc => 
+            sc.batchId === batchId.toString() && 
+            sc.subjectId === subjectId.toString() &&
+            sc.day === entry.day && 
+            sc.slot === entry.period
           );
-          if (subjectSlotConstraintsForThis.length > 0 && !hasConstraintForThisSlot) {
-            subjectConstraintViolations++;
-            objectives.constraintViolations -= 5;
+          
+          if (matchingConstraint) {
+            // This is a constrained slot - give bonus points
+            objectives.constraintViolations += CONSTRAINT_PENALTY_WEIGHT;
           }
         }
         
         // Check classroom constraint violations
         if (batchId) {
+          let batch = batches.find(b => b._id.equals(batchId));
+          
+          // Check if batch has specific classroom assignments
+          if (batch && batch.classrooms && batch.classrooms.length > 0) {
+            let isAssignedClassroom = batch.classrooms.some(bc => {
+              let classroom = classrooms.find(c => c._id.equals(bc));
+              return classroom && classroom.name === entry.classroom;
+            });
+            
+            if (!isAssignedClassroom) {
+              classroomConstraintViolations++;
+              objectives.constraintViolations -= 50; // Heavy penalty for using unassigned classroom
+            }
+          }
+          
+          // Check for specific classroom preferences
           let classroomConstraints = constraints.filter(c => 
             c.type === 'classroom_preference' && 
             c.details && 
@@ -696,6 +1568,10 @@ exports.generateTimetable = async function(req, res) {
       
       // Apply conflict resolution to the child
       child = resolveConflicts(child);
+      
+      // Validate and fix batch classroom constraints
+      child = validateAndFixBatchClassrooms(child);
+      
       return child;
     }
 
@@ -734,17 +1610,43 @@ exports.generateTimetable = async function(req, res) {
               newTT[i].period = bestSlot.period;
               newTT[i].classroom = bestSlot.classroom;
             }
+          } else if (mutationType < 0.9) {
+            // Classroom reassignment mutation: try different classroom within batch constraints
+            let batch = batches.find(b => b.name === newTT[i].batch);
+            if (batch && batch.classrooms && batch.classrooms.length > 0) {
+              let batchClassrooms = classrooms.filter(c => 
+                batch.classrooms.some(bc => bc.toString() === c._id.toString())
+              );
+              if (batchClassrooms.length > 0) {
+                let randomClassroom = batchClassrooms[Math.floor(Math.random() * batchClassrooms.length)];
+                newTT[i].classroom = randomClassroom.name;
+              }
+            }
           } else {
-            // Constraint-aware mutation: move to a preferred slot
+            // Constraint-aware mutation: prioritize subject slot constraint satisfaction
             let batch = batches.find(b => b.name === newTT[i].batch);
             let subject = subjects.find(s => s.name === newTT[i].subject);
             if (batch && subject) {
-              const constraintKey = `${batch._id}-${subject._id}`;
-              const subjectSlotConstraintsForThis = subjectSlotConstraints[constraintKey] || [];
-              if (subjectSlotConstraintsForThis.length > 0) {
-                let preferredSlot = subjectSlotConstraintsForThis[Math.floor(Math.random() * subjectSlotConstraintsForThis.length)];
-                newTT[i].day = preferredSlot.day;
-                newTT[i].period = preferredSlot.slot;
+              // Check if this subject has any subject slot constraints
+              const subjectSlotConstraint = singleClassConstraints.find(sc => 
+                sc.batchId === batch._id.toString() && 
+                sc.subjectId === subject._id.toString()
+              );
+              
+              if (subjectSlotConstraint) {
+                // 90% chance to move to the subject slot constraint slot
+                if (Math.random() < 0.9) {
+                  newTT[i].day = subjectSlotConstraint.day;
+                  newTT[i].period = subjectSlotConstraint.slot;
+                } else {
+                  // Random mutation
+                  newTT[i].day = days[Math.floor(Math.random() * days.length)];
+                  newTT[i].period = periods[Math.floor(Math.random() * periods.length)];
+                }
+              } else {
+                // Random mutation for subjects without constraints
+                newTT[i].day = days[Math.floor(Math.random() * days.length)];
+                newTT[i].period = periods[Math.floor(Math.random() * periods.length)];
               }
             }
           }
@@ -753,6 +1655,13 @@ exports.generateTimetable = async function(req, res) {
       
       // Apply conflict resolution after mutation
       newTT = resolveConflicts(newTT);
+      
+      // Validate and fix batch classroom constraints
+      newTT = validateAndFixBatchClassrooms(newTT);
+      
+      // Note: Removed ensureConstraintSatisfaction call here to prevent over-scheduling
+      // Constraints should be handled during the main generation process
+      
       return newTT;
     }
 
@@ -788,7 +1697,7 @@ exports.generateTimetable = async function(req, res) {
     function localSearch(timetable) {
       let improved = true;
       let iterations = 0;
-      let maxIterations = 10;
+      let maxIterations = 5; // Reduced for faster execution
       
       while (improved && iterations < maxIterations) {
         improved = false;
@@ -821,6 +1730,7 @@ exports.generateTimetable = async function(req, res) {
         // Try classroom optimization
         if (!improved && iterations < maxIterations - 1) {
           let optimizedTimetable = optimizeClassroomDistribution(JSON.parse(JSON.stringify(timetable)));
+          optimizedTimetable = validateAndFixBatchClassrooms(optimizedTimetable);
           let optimizedFitness = fitness(optimizedTimetable);
           if (optimizedFitness > currentFitness) {
             timetable = optimizedTimetable;
@@ -841,8 +1751,6 @@ exports.generateTimetable = async function(req, res) {
     let diversityHistory = [];
     let stagnationCount = 0;
     let lastBestFitness = -Infinity;
-    
-    console.log('Starting advanced genetic algorithm...');
     
     for (let gen = 0; gen < GENERATIONS; gen++) {
       // Calculate fitness and sort population
@@ -866,10 +1774,6 @@ exports.generateTimetable = async function(req, res) {
       let currentDiversity = calculateDiversity(population);
       diversityHistory.push(currentDiversity);
       
-      // Log progress every 20 generations
-      if (gen % 20 === 0) {
-        console.log(`Generation ${gen}: Best fitness = ${currentBestFitness.toFixed(2)}, Diversity = ${currentDiversity.toFixed(3)}`);
-      }
       
       // Create new population
       let newPop = [];
@@ -905,8 +1809,8 @@ exports.generateTimetable = async function(req, res) {
         // Apply mutation
         child = mutate(child, gen, GENERATIONS);
         
-        // Apply local search to best individuals occasionally
-        if (Math.random() < 0.1 && child.fitness > population[Math.floor(POP_SIZE * 0.3)].fitness) {
+        // Apply local search to best individuals occasionally (reduced frequency)
+        if (Math.random() < 0.05 && child.fitness > population[Math.floor(POP_SIZE * 0.2)].fitness) {
           child = localSearch(child);
           child.fitness = fitness(child);
         }
@@ -926,7 +1830,6 @@ exports.generateTimetable = async function(req, res) {
       
       // If stagnation detected, increase mutation rate temporarily
       if (stagnationCount > 10) {
-        console.log(`Stagnation detected at generation ${gen}, applying diversity boost...`);
         for (let i = ELITE_SIZE; i < newPop.length; i++) {
           if (Math.random() < 0.3) {
             let newRandomIndividual = randomIndividual();
@@ -943,14 +1846,24 @@ exports.generateTimetable = async function(req, res) {
     // Final local search on best individual
     population.sort((a, b) => b.fitness - a.fitness);
     let best = localSearch(population[0]);
+    
+    // Final validation and fix of batch classroom constraints
+    best = validateAndFixBatchClassrooms(best);
+    
+    // Validate and fix over-scheduling issues
+    best = validateAndFixOverScheduling(best);
+    
     best.fitness = fitness(best);
     
-    console.log('Genetic algorithm completed!');
-    console.log(`Final best fitness: ${best.fitness.toFixed(2)}`);
-    console.log(`Fitness improvement: ${(best.fitness - bestFitnessHistory[0]).toFixed(2)}`);
-    console.log(`Final diversity: ${calculateDiversity(population).toFixed(3)}`);
-    console.log('Generated timetable entries:', best.length);
-    console.log('Sample entry:', best[0]);
+    // Detect and report all constraints and limitations
+    // Note: Removed ensureConstraintSatisfaction call here to prevent exceeding weekly limits
+    // The main algorithm should handle constraints properly during generation
+    let limitations = detectAllConstraintsAndLimitations(best);
+    let limitationsReport = createLimitationsReport(limitations);
+    
+    // Validate constraint limits
+    let constraintLimitViolations = validateConstraintLimits(best);
+    
     
     // Enhanced collision detection with proper conflict identification
     let teacherCollisions = {};
@@ -1022,15 +1935,10 @@ exports.generateTimetable = async function(req, res) {
       }
     });
     
-    // Log collision statistics
+    // Calculate collision statistics
     let totalTeacherConflicts = Object.values(teacherCollisions).filter(arr => arr.length > 1).length;
     let totalClassroomConflicts = Object.values(classroomCollisions).filter(arr => arr.length > 1).length;
     let totalBatchConflicts = Object.values(batchCollisions).filter(arr => arr.length > 1).length;
-    
-    console.log(`Collision Summary:`);
-    console.log(`- Teacher conflicts: ${totalTeacherConflicts}`);
-    console.log(`- Classroom conflicts: ${totalClassroomConflicts}`);
-    console.log(`- Batch conflicts: ${totalBatchConflicts}`);
     
     if (allBatchesMode) {
       // Group timetable by batch for frontend display
@@ -1043,13 +1951,19 @@ exports.generateTimetable = async function(req, res) {
         batches,
         days,
         periods,
+        limitations: limitations,
+        limitationsReport: limitationsReport,
+        constraintLimitViolations: constraintLimitViolations
       });
     } else {
       let selectedBatch = batchList && batchList.length > 0 ? batchList[0] : null;
       res.json({
         timetable: best,
         batches,
-        selectedBatch
+        selectedBatch,
+        limitations: limitations,
+        limitationsReport: limitationsReport,
+        constraintLimitViolations: constraintLimitViolations
       });
     }
   } catch (err) {

@@ -315,9 +315,9 @@ const Layout = ({ children }) => {
 
       {/* Main content */}
       <div className="lg:pl-64 flex flex-col flex-1">
-        {/* Top bar */}
+        {/* Enhanced Top bar with better styling */}
         <motion.div 
-          className="sticky top-0 z-10 lg:hidden pl-1 pt-1 sm:pl-3 sm:pt-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-white/20 dark:border-slate-700/20"
+          className="sticky top-0 z-10 lg:hidden px-4 py-4 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50 shadow-lg"
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -334,15 +334,18 @@ const Layout = ({ children }) => {
           </div>
         </motion.div>
 
-        {/* Page content */}
+        {/* Enhanced Page content with better spacing */}
         <main className="flex-1">
-          <div className="py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="py-8 lg:py-12">
+            <div className="max-w-8xl mx-auto px-6 sm:px-8 lg:px-12">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
-                className="mouse-shadow"
+                className="mouse-shadow bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8 lg:p-12"
+                style={{
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                }}
               >
                 {children}
               </motion.div>
