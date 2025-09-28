@@ -5,6 +5,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
+import FrontPage from './components/FrontPage';
 
 // Pages
 import Login from './pages/Login';
@@ -31,8 +32,10 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
+              {/* Public landing page */}
+              <Route path="/" element={<FrontPage />} />
+              
               {/* Protected routes */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <Layout>
@@ -98,7 +101,7 @@ function App() {
               } />
               
               {/* Catch all route */}
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </div>
           </Router>

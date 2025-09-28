@@ -88,6 +88,30 @@ module.exports = {
           red: '#ef4444',
           dark: '#0f172a',
           light: '#f8fafc',
+        },
+        cosmic: {
+          neon: {
+            cyan: '#00ffff',
+            magenta: '#ff00ff',
+            yellow: '#ffff00',
+            green: '#00ff00',
+            blue: '#0080ff',
+            purple: '#8000ff',
+            pink: '#ff0080',
+            orange: '#ff8000',
+          },
+          dark: {
+            900: '#0a0a0a',
+            800: '#1a1a1a',
+            700: '#2a2a2a',
+            600: '#3a3a3a',
+          },
+          light: {
+            50: '#fafafa',
+            100: '#f5f5f5',
+            200: '#e5e5e5',
+            300: '#d4d4d4',
+          }
         }
       },
       fontFamily: {
@@ -106,7 +130,6 @@ module.exports = {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'float': 'float 6s ease-in-out infinite',
         'glow': 'glow 2s ease-in-out infinite alternate',
-        'shimmer': 'shimmer 2s linear infinite',
         'gradient-x': 'gradient-x 15s ease infinite',
         'gradient-y': 'gradient-y 15s ease infinite',
         'gradient-xy': 'gradient-xy 15s ease infinite',
@@ -119,6 +142,9 @@ module.exports = {
         'slide-in-left': 'slideInLeft 0.5s ease-out',
         'zoom-in': 'zoomIn 0.3s ease-out',
         'flip': 'flip 0.6s ease-in-out',
+        'cosmic-pulse': 'cosmicPulse 2s ease-in-out infinite',
+        'neon-glow': 'neonGlow 1.5s ease-in-out infinite alternate',
+        'cosmic-float': 'cosmicFloat 4s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -177,10 +203,6 @@ module.exports = {
           '0%': { boxShadow: '0 0 5px rgba(59, 130, 246, 0.5)' },
           '100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(59, 130, 246, 0.6)' },
         },
-        shimmer: {
-          '0%': { transform: 'translateX(-100%)' },
-          '100%': { transform: 'translateX(100%)' },
-        },
         'gradient-x': {
           '0%, 100%': {
             'background-size': '200% 200%',
@@ -223,6 +245,32 @@ module.exports = {
           'from, to': { 'border-color': 'transparent' },
           '50%': { 'border-color': 'orange' },
         },
+        cosmicPulse: {
+          '0%, 100%': { 
+            boxShadow: '0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #00ffff',
+            transform: 'scale(1)'
+          },
+          '50%': { 
+            boxShadow: '0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff',
+            transform: 'scale(1.05)'
+          },
+        },
+        neonGlow: {
+          '0%': { 
+            textShadow: '0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #00ffff',
+            filter: 'brightness(1)'
+          },
+          '100%': { 
+            textShadow: '0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff',
+            filter: 'brightness(1.2)'
+          },
+        },
+        cosmicFloat: {
+          '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+          '25%': { transform: 'translateY(-10px) rotate(1deg)' },
+          '50%': { transform: 'translateY(-5px) rotate(0deg)' },
+          '75%': { transform: 'translateY(-15px) rotate(-1deg)' },
+        },
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
@@ -232,6 +280,9 @@ module.exports = {
         'hero-gradient': 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
         'card-gradient': 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
         'card-gradient-dark': 'linear-gradient(145deg, #1e293b 0%, #0f172a 100%)',
+        'cosmic-neon-gradient': 'linear-gradient(135deg, #00ffff 0%, #ff00ff 50%, #ffff00 100%)',
+        'cosmic-dark-gradient': 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%)',
+        'cosmic-light-gradient': 'linear-gradient(135deg, #fafafa 0%, #f5f5f5 50%, #e5e5e5 100%)',
       },
       backdropBlur: {
         xs: '2px',
@@ -244,6 +295,10 @@ module.exports = {
         'inner-glow': 'inset 0 0 20px rgba(59, 130, 246, 0.3)',
         'codehelp': '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
         'codehelp-lg': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+        'cosmic-neon': '0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff',
+        'cosmic-neon-lg': '0 0 20px #00ffff, 0 0 40px #00ffff, 0 0 60px #00ffff',
+        'cosmic-magenta': '0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 30px #ff00ff',
+        'cosmic-yellow': '0 0 10px #ffff00, 0 0 20px #ffff00, 0 0 30px #ffff00',
       },
       transitionProperty: {
         'height': 'height',

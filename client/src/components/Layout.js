@@ -16,15 +16,13 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { useScrollAnimation, useMousePosition } from '../hooks/useScrollAnimation';
+import { useMousePosition } from '../hooks/useScrollAnimation';
 import ThemeToggle from './ThemeToggle';
+import CosmicBackground from './CosmicBackground';
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
-  const { isDark } = useTheme();
-  const { scrollY } = useScrollAnimation();
   const { x: mouseX, y: mouseY } = useMousePosition();
   const location = useLocation();
 
@@ -75,56 +73,44 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 transition-all duration-500">
-      {/* CodeHelp-inspired animated background elements */}
+      {/* Cosmic Background */}
+      <CosmicBackground type="stars" />
+      <CosmicBackground type="light-spot" followMouse={true} />
+      
+      {/* Cosmic Neon Decorations */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <motion.div
-          className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-r from-codehelp-blue/20 to-codehelp-purple/20 rounded-full blur-xl"
+          className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-xl"
           animate={{
-            x: [0, 100, 0],
-            y: [0, -50, 0],
             scale: [1, 1.2, 1],
+            opacity: [0.3, 0.6, 0.3],
           }}
           transition={{
-            duration: 20,
+            duration: 4,
             repeat: Infinity,
             ease: "easeInOut"
           }}
         />
         <motion.div
-          className="absolute top-40 right-32 w-24 h-24 bg-gradient-to-r from-codehelp-purple/20 to-codehelp-pink/20 rounded-full blur-xl"
+          className="absolute top-40 right-32 w-24 h-24 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 rounded-full blur-xl"
           animate={{
-            x: [0, -80, 0],
-            y: [0, 60, 0],
             scale: [1, 0.8, 1],
+            opacity: [0.4, 0.7, 0.4],
           }}
           transition={{
-            duration: 15,
+            duration: 6,
             repeat: Infinity,
             ease: "easeInOut"
           }}
         />
         <motion.div
-          className="absolute bottom-32 left-1/3 w-40 h-40 bg-gradient-to-r from-codehelp-green/10 to-codehelp-blue/10 rounded-full blur-2xl"
+          className="absolute bottom-32 left-1/3 w-40 h-40 bg-gradient-to-r from-purple-500/10 to-cyan-500/10 rounded-full blur-2xl"
           animate={{
-            x: [0, 120, 0],
-            y: [0, -80, 0],
             scale: [1, 1.3, 1],
+            opacity: [0.2, 0.5, 0.2],
           }}
           transition={{
-            duration: 25,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-        <motion.div
-          className="absolute top-1/2 right-1/4 w-20 h-20 bg-gradient-to-r from-codehelp-orange/15 to-codehelp-red/15 rounded-full blur-lg"
-          animate={{
-            x: [0, -60, 0],
-            y: [0, 40, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 18,
+            duration: 8,
             repeat: Infinity,
             ease: "easeInOut"
           }}
@@ -158,24 +144,28 @@ const Layout = ({ children }) => {
               </div>
               <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
                 <div className="flex-shrink-0 flex items-center px-4">
-                  <motion.div
-                    className="flex items-center space-x-3"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
-                  >
+                  <Link to="/" className="block">
                     <motion.div
-                      className="p-2 bg-codehelp-gradient rounded-xl"
-                      animate={{ rotate: [0, 360] }}
-                      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                      className="flex items-center space-x-3 cursor-pointer hover:scale-105 transition-transform duration-300"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      <Sparkles className="h-5 w-5 text-white" />
+                      <motion.div
+                        className="p-2 bg-codehelp-gradient rounded-xl"
+                        animate={{ rotate: [0, 360] }}
+                        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                      >
+                        <Sparkles className="h-5 w-5 text-white" />
+                      </motion.div>
+                      <div>
+                        <h1 className="text-xl font-bold gradient-text-codehelp font-display">TimeTrix</h1>
+                        <div className="h-0.5 w-12 bg-codehelp-gradient rounded-full" />
+                      </div>
                     </motion.div>
-                    <div>
-                      <h1 className="text-xl font-bold gradient-text-codehelp font-display">TimeTrix</h1>
-                      <div className="h-0.5 w-12 bg-codehelp-gradient rounded-full" />
-                    </div>
-                  </motion.div>
+                  </Link>
                 </div>
                 <nav className="mt-5 px-2 space-y-1">
                   {navigation.map((item, index) => {
@@ -191,9 +181,9 @@ const Layout = ({ children }) => {
                           to={item.href}
                           className={`${
                             isActive(item.href)
-                              ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-glow'
+                              ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white'
                               : 'text-slate-600 dark:text-slate-300 hover:bg-white/10 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-100'
-                          } group flex items-center px-3 py-3 text-base font-medium rounded-xl transition-all duration-300 transform hover:scale-105 mouse-shadow`}
+                          } group flex items-center px-3 py-3 text-base font-medium rounded-xl transition-all duration-300 transform hover:scale-105`}
                           onClick={() => setSidebarOpen(false)}
                         >
                           <Icon className={`mr-4 h-6 w-6 ${isActive(item.href) ? 'text-white' : item.color}`} />
@@ -246,19 +236,25 @@ const Layout = ({ children }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <div className="flex items-center space-x-3">
-                <motion.div
-                  className="p-2 bg-codehelp-gradient rounded-xl"
-                  animate={{ rotate: [0, 360] }}
-                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              <Link to="/" className="block">
+                <motion.div 
+                  className="flex items-center space-x-3 cursor-pointer hover:scale-105 transition-transform duration-300"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  <Sparkles className="h-5 w-5 text-white" />
+                  <motion.div
+                    className="p-2 bg-codehelp-gradient rounded-xl"
+                    animate={{ rotate: [0, 360] }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Sparkles className="h-5 w-5 text-white" />
+                  </motion.div>
+                  <div>
+                    <h1 className="text-xl font-bold gradient-text-codehelp font-display">TimeTrix</h1>
+                    <div className="h-0.5 w-12 bg-codehelp-gradient rounded-full" />
+                  </div>
                 </motion.div>
-                <div>
-                  <h1 className="text-xl font-bold gradient-text-codehelp font-display">TimeTrix</h1>
-                  <div className="h-0.5 w-12 bg-codehelp-gradient rounded-full" />
-                </div>
-              </div>
+              </Link>
             </motion.div>
             <nav className="mt-5 flex-1 px-2 space-y-1">
               {navigation.map((item, index) => {
@@ -274,9 +270,9 @@ const Layout = ({ children }) => {
                       to={item.href}
                       className={`${
                         isActive(item.href)
-                          ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-glow'
+                          ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white'
                           : 'text-slate-600 dark:text-slate-300 hover:bg-white/10 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-100'
-                      } group flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 mouse-shadow`}
+                      } group flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105`}
                     >
                       <Icon className={`mr-3 h-5 w-5 ${isActive(item.href) ? 'text-white' : item.color}`} />
                       {item.name}
@@ -343,7 +339,7 @@ const Layout = ({ children }) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
-                className="mouse-shadow bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8 lg:p-12"
+                className="codehelp-hover-box double-glow bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8 lg:p-12"
                 style={{
                   boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)'
                 }}

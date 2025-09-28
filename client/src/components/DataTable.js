@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Edit, Trash2, Plus, Search, Sparkles, Filter, CheckSquare, Square } from 'lucide-react';
 import ScrollAnimation from './ScrollAnimation';
+import CosmicBackground from './CosmicBackground';
 
 const DataTable = ({
   data = [],
@@ -96,7 +97,12 @@ const DataTable = ({
   }
 
   return (
-    <ScrollAnimation animation="slideUp" className="card-gradient hover-lift mouse-shadow">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 relative">
+      {/* Cosmic Background */}
+      <CosmicBackground type="stars" />
+      <CosmicBackground type="light-spot" followMouse={true} />
+      
+      <ScrollAnimation animation="slideUp" className="card-gradient hover-lift mouse-shadow">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div className="flex items-center space-x-3 mb-4 sm:mb-0">
@@ -160,10 +166,6 @@ const DataTable = ({
               <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
               <span>Add New</span>
               
-              {/* Shimmer effect */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 animate-shimmer" />
-              </div>
             </motion.button>
           )}
         </div>
@@ -354,6 +356,7 @@ const DataTable = ({
         </motion.div>
       )}
     </ScrollAnimation>
+    </div>
   );
 };
 
