@@ -314,7 +314,44 @@ const SpecialClasses = () => {
                 <label className="block text-sm mb-2">Subject</label>
                 <select className="input-field" value={fixedForm.subject} onChange={e => setFixedForm({ ...fixedForm, subject: e.target.value })}>
                   <option value="">Select subject</option>
-                  {subjects.map(s => (<option key={s._id} value={s._id}>{s.name}</option>))}
+                  {(() => {
+                    const selectedBatchData = batches.find(b => b._id === selectedBatch);
+                    
+                    if (!selectedBatchData) {
+                      return [];
+                    }
+                    
+                    if (!selectedBatchData.subjects || selectedBatchData.subjects.length === 0) {
+                      return (
+                        <option value="" disabled>
+                          No subjects assigned to this batch
+                        </option>
+                      );
+                    }
+                    
+                    // Handle both cases: subjects as objects (populated) or as IDs
+                    let batchSubjects = [];
+                    
+                    if (selectedBatchData.subjects.length > 0 && typeof selectedBatchData.subjects[0] === 'object' && selectedBatchData.subjects[0]._id) {
+                      // Subjects are already populated objects
+                      batchSubjects = selectedBatchData.subjects;
+                    } else {
+                      // Subjects are IDs, need to find the actual subject objects
+                      batchSubjects = selectedBatchData.subjects.map(subjectId => 
+                        subjects.find(s => s._id === subjectId)
+                      ).filter(Boolean);
+                    }
+                    
+                    if (batchSubjects.length === 0) {
+                      return (
+                        <option value="" disabled>
+                          No valid subjects found for this batch
+                        </option>
+                      );
+                    }
+                    
+                    return batchSubjects.map(s => (<option key={s._id} value={s._id}>{s.name}</option>));
+                  })()}
                 </select>
               </div>
               <div>
