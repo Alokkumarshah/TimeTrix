@@ -94,13 +94,244 @@
 }
 
 @layer components {
+  /* Enhanced toggle effects */
+  .toggle-effect {
+    @apply transition-all duration-500 ease-out;
+    position: relative;
+    overflow: hidden;
+  }
+
+
+  .toggle-effect:hover {
+    @apply scale-105;
+    transform: translateY(-2px);
+  }
+
+  .dark .toggle-effect:hover {
+    @apply shadow-lg;
+    filter: drop-shadow(0 0 15px rgba(99,102,241,0.8));
+  }
+
+  .toggle-effect:active {
+    @apply scale-95;
+    transform: translateY(0);
+  }
+
+  /* Enhanced button toggle effects */
+  .btn-toggle-effect {
+    @apply relative overflow-hidden transition-all duration-500 ease-out;
+    transform-style: preserve-3d;
+  }
+
+
+  .btn-toggle-effect:hover {
+    @apply scale-105;
+    transform: translateY(-3px) rotateX(5deg);
+  }
+
+  .dark .btn-toggle-effect:hover {
+    @apply shadow-xl;
+  }
+
+  .btn-toggle-effect:active {
+    @apply scale-95;
+    transform: translateY(-1px) rotateX(2deg);
+  }
+
+  /* Input field toggle effects */
+  .input-toggle-effect {
+    @apply transition-all duration-300 ease-out;
+    position: relative;
+  }
+
+  .input-toggle-effect:focus {
+    @apply scale-105;
+    transform: translateY(-2px);
+    box-shadow: none;
+  }
+
+  .input-toggle-effect:hover {
+    @apply scale-105;
+    box-shadow: none;
+  }
+
+  /* Card toggle effects */
+  .card-toggle-effect {
+    @apply transition-all duration-500 ease-out;
+    transform-style: preserve-3d;
+  }
+
+  .card-toggle-effect:hover {
+    @apply scale-105;
+    transform: translateY(-5px) rotateX(5deg) rotateY(5deg);
+  }
+
+  .dark .card-toggle-effect:hover {
+    @apply shadow-2xl;
+  }
+
+  .card-toggle-effect:active {
+    @apply scale-95;
+    transform: translateY(-2px) rotateX(2deg) rotateY(2deg);
+  }
+
+  .frontpage-nav-button {
+    @apply inline-flex items-center gap-2 px-5 py-2 rounded-xl border;
+    @apply text-sm font-semibold backdrop-blur-md;
+  }
+
+  .frontpage-nav-button.login {
+    @apply bg-white/10 dark:bg-slate-800/40 border-white/20 dark:border-slate-700/20 text-slate-800 dark:text-slate-200;
+  }
+
+  .frontpage-nav-button.register {
+    @apply bg-gradient-to-r from-purple-700 via-pink-600 to-cyan-700 text-white border-white/10;
+  }
+
+  .frontpage-nav-button:hover {
+    @apply scale-105;
+  }
+
+  .dark .frontpage-nav-button:hover {
+    @apply shadow-lg;
+  }
+
+  .cosmic-gradient-text {
+    background: linear-gradient(135deg, #673ab7 0%, #ec4899 50%, #06b6d4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Cosmic Neon Theme */
+  .cosmic-neon-text {
+    background: linear-gradient(135deg, #00ffff 0%, #ff00ff 50%, #ffff00 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: neonGlow 1.5s ease-in-out infinite alternate;
+  }
+
+  .cosmic-neon-bg {
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%);
+  }
+
+  .cosmic-neon-light-bg {
+    background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 50%, #e5e5e5 100%);
+  }
+
+  .cosmic-neon-border {
+    border: 1px solid #00ffff;
+    box-shadow: none;
+  }
+
+  .cosmic-neon-card {
+    background: rgba(0, 255, 255, 0.05);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    box-shadow: none;
+    backdrop-filter: blur(10px);
+  }
+
+  /* Professional light mode cosmic cards */
+  .cosmic-neon-card:not(.dark) {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    box-shadow: none;
+  }
+
+  .cosmic-neon-button {
+    background: linear-gradient(135deg, #00ffff 0%, #ff00ff 50%, #ffff00 100%);
+    color: #000;
+    border: none;
+    box-shadow: none;
+    animation: cosmicPulse 2s ease-in-out infinite;
+  }
+
+  .cosmic-neon-button:hover {
+    box-shadow: none;
+    transform: scale(1.05);
+  }
+
+  /* CodeHelp-style hover effects */
+  .codehelp-hover-box {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .codehelp-hover-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    transition: left 0.5s ease;
+    z-index: 1;
+  }
+
+  .codehelp-hover-box:hover::before {
+    left: 100%;
+  }
+
+  .codehelp-hover-box:hover {
+    transform: translateY(-2px);
+    box-shadow: none;
+  }
+
+  /* Double colored glow effect */
+  .double-glow {
+    position: relative;
+    transition: all 0.3s ease;
+  }
+
+  .double-glow:hover {
+    box-shadow: none;
+  }
+
+  .double-glow-content {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+  }
+
+  .double-glow-dark .double-glow-content {
+    background: #1e293b;
+  }
+
+  /* Professional light mode styling */
+  .double-glow:not(.double-glow-dark) .double-glow-content {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: none;
+  }
+
+  .bg-cosmic-gradient {
+    background: linear-gradient(135deg, #673ab7 0%, #ec4899 50%, #06b6d4 100%);
+  }
+
+  .bg-cosmic-dark-900 { background-color: #0b0f1a; }
+  .bg-cosmic-dark-800 { background-color: #0f1626; }
+  .bg-cosmic-light-50 { background-color: #f8fafc; }
+  .border-cosmic-space-700 { border-color: #1e293b; }
   /* Modern button styles inspired by CodeHelp */
   .btn-primary {
-    @apply relative overflow-hidden bg-codehelp-gradient text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-codehelp-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800;
+    @apply relative overflow-hidden bg-codehelp-gradient text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800;
+  }
+
+  .dark .btn-primary {
+    @apply hover:shadow-codehelp-lg;
   }
   
   .btn-secondary {
-    @apply relative overflow-hidden bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold py-3 px-6 rounded-xl border border-slate-200 dark:border-slate-700 transition-all duration-300 transform hover:scale-105 hover:shadow-codehelp focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 backdrop-blur-sm;
+    @apply relative overflow-hidden bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold py-3 px-6 rounded-xl border border-slate-200 dark:border-slate-700 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 backdrop-blur-sm;
+  }
+
+  .dark .btn-secondary {
+    @apply hover:shadow-codehelp;
   }
   
   .btn-ghost {
@@ -108,12 +339,20 @@
   }
   
   .btn-outline {
-    @apply relative overflow-hidden bg-transparent border-2 border-codehelp-blue text-codehelp-blue hover:bg-codehelp-blue hover:text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-glow focus:outline-none;
+    @apply relative overflow-hidden bg-transparent border-2 border-codehelp-blue text-codehelp-blue hover:bg-codehelp-blue hover:text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 focus:outline-none;
+  }
+
+  .dark .btn-outline {
+    @apply hover:shadow-glow;
   }
   
   /* Card styles inspired by CodeHelp */
   .card {
-    @apply relative overflow-hidden bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/30 dark:border-slate-700/30 p-8 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] hover:border-primary-200 dark:hover:border-primary-800;
+    @apply relative overflow-hidden bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-3xl border border-white/30 dark:border-slate-700/30 p-8 transition-all duration-300 hover:scale-[1.02] hover:border-primary-200 dark:hover:border-primary-800;
+  }
+
+  .dark .card {
+    @apply shadow-2xl hover:shadow-2xl;
   }
   
   .card-glass {
@@ -121,8 +360,12 @@
   }
   
   .card-gradient {
-    @apply relative overflow-hidden rounded-3xl shadow-2xl border border-white/30 dark:border-slate-700/30 p-8 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02];
+    @apply relative overflow-hidden rounded-3xl border border-white/30 dark:border-slate-700/30 p-8 transition-all duration-300 hover:scale-[1.02];
     background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  }
+
+  .dark .card-gradient {
+    @apply shadow-2xl hover:shadow-2xl;
   }
   
   .dark .card-gradient {
@@ -130,16 +373,24 @@
   }
   
   .hero-card {
-    @apply relative overflow-hidden rounded-3xl shadow-2xl border border-white/30 dark:border-slate-700/30 p-12 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02];
+    @apply relative overflow-hidden rounded-3xl border border-white/30 dark:border-slate-700/30 p-12 transition-all duration-300 hover:scale-[1.02];
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+  }
+
+  .dark .hero-card {
+    @apply shadow-2xl hover:shadow-2xl;
   }
   
   /* Enhanced Input styles for dark theme */
   .input-field {
-    @apply w-full px-5 py-4 bg-white/90 dark:bg-slate-700/90 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 backdrop-blur-sm placeholder-slate-400 dark:placeholder-slate-500 text-slate-700 dark:text-slate-200 shadow-sm hover:shadow-md focus:shadow-lg;
+    @apply w-full px-5 py-4 bg-white/90 dark:bg-slate-700/90 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 backdrop-blur-sm placeholder-slate-400 dark:placeholder-slate-500 text-slate-700 dark:text-slate-200;
+  }
+
+  .dark .input-field {
+    @apply shadow-sm hover:shadow-md focus:shadow-lg;
   }
   
-  .input-field:focus {
+  .dark .input-field:focus {
     @apply shadow-glow ring-blue-500;
   }
   
@@ -159,7 +410,11 @@
   
   /* Table styles */
   .table-container {
-    @apply overflow-x-auto shadow-2xl rounded-3xl border border-white/30 dark:border-slate-700/30 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl p-6;
+    @apply overflow-x-auto rounded-3xl border border-white/30 dark:border-slate-700/30 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl p-6;
+  }
+
+  .dark .table-container {
+    @apply shadow-2xl;
   }
   
   .table {
@@ -179,7 +434,11 @@
   }
   
   .table-row {
-    @apply hover:bg-white/80 dark:hover:bg-slate-700/50 transition-all duration-300 hover:shadow-sm;
+    @apply hover:bg-white/80 dark:hover:bg-slate-700/50 transition-all duration-300;
+  }
+
+  .dark .table-row {
+    @apply hover:shadow-sm;
   }
   
   .table-cell {
@@ -192,7 +451,11 @@
   }
   
   .nav-link-active {
-    @apply bg-codehelp-gradient text-white shadow-glow;
+    @apply bg-codehelp-gradient text-white;
+  }
+
+  .dark .nav-link-active {
+    @apply shadow-glow;
   }
   
   .nav-link-inactive {
@@ -204,15 +467,7 @@
     @apply animate-spin rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-primary-500;
   }
   
-  /* Shimmer effect */
-  .shimmer {
-    @apply relative overflow-hidden;
-  }
   
-  .shimmer::before {
-    content: '';
-    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 animate-shimmer;
-  }
   
   /* Floating animation */
   .float {
@@ -238,15 +493,27 @@
   
   /* Hover effects */
   .hover-lift {
-    @apply transition-all duration-300 transform hover:scale-105 hover:shadow-codehelp-lg;
+    @apply transition-all duration-300 transform hover:scale-105;
+  }
+
+  .dark .hover-lift {
+    @apply hover:shadow-codehelp-lg;
   }
   
   .hover-glow {
-    @apply transition-all duration-300 hover:shadow-glow;
+    @apply transition-all duration-300;
+  }
+
+  .dark .hover-glow {
+    @apply hover:shadow-glow;
   }
   
   .hover-codehelp {
-    @apply transition-all duration-300 hover:text-codehelp-blue hover:shadow-glow;
+    @apply transition-all duration-300 hover:text-codehelp-blue;
+  }
+
+  .dark .hover-codehelp {
+    @apply hover:shadow-glow;
   }
   
   /* Mouse shadow effect */
@@ -254,7 +521,7 @@
     @apply transition-all duration-300;
   }
   
-  .mouse-shadow:hover {
+  .dark .mouse-shadow:hover {
     box-shadow: 0 0 30px rgba(59, 130, 246, 0.4), 0 0 60px rgba(59, 130, 246, 0.2);
   }
   
@@ -288,7 +555,7 @@
   }
   
   .scroll-scale-in.visible {
-    @apply opacity-100 scale-100;
+    @apply opacity-100 scale-105;
   }
   
   /* CodeHelp specific styles */
@@ -297,15 +564,53 @@
   }
   
   .codehelp-feature-card {
-    @apply bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-2xl p-6 border border-white/20 dark:border-slate-700/20 transition-all duration-300 hover:scale-105 hover:shadow-codehelp-lg;
+    @apply bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-2xl p-6 border border-white/20 dark:border-slate-700/20 transition-all duration-300 hover:scale-105;
+  }
+
+  .dark .codehelp-feature-card {
+    @apply hover:shadow-codehelp-lg;
   }
   
   .codehelp-stats-card {
-    @apply bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl p-6 border border-white/20 dark:border-slate-700/20 transition-all duration-300 hover:scale-105 hover:shadow-codehelp-lg;
+    @apply bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl p-6 border border-white/20 dark:border-slate-700/20 transition-all duration-300 hover:scale-105;
+  }
+
+  .dark .codehelp-stats-card {
+    @apply hover:shadow-codehelp-lg;
   }
   
   .codehelp-button {
-    @apply bg-codehelp-gradient text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-codehelp-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    @apply bg-codehelp-gradient text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
+
+  .dark .codehelp-button {
+    @apply hover:shadow-codehelp-lg;
+  }
+
+  /* Enhanced border hover effects */
+  .border-glow-hover {
+    @apply transition-all duration-500 ease-in-out;
+  }
+
+  .border-glow-hover:hover {
+    @apply border-4 shadow-lg;
+    box-shadow: 0 0 20px rgba(147, 51, 234, 0.3), 0 0 40px rgba(147, 51, 234, 0.1);
+  }
+
+  .border-glow-hover.pink:hover {
+    box-shadow: 0 0 20px rgba(236, 72, 153, 0.3), 0 0 40px rgba(236, 72, 153, 0.1);
+  }
+
+  .border-glow-hover.cyan:hover {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.3), 0 0 40px rgba(6, 182, 212, 0.1);
+  }
+
+  .border-glow-hover.yellow:hover {
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.3), 0 0 40px rgba(250, 204, 21, 0.1);
+  }
+
+  .border-glow-hover.blue:hover {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3), 0 0 40px rgba(59, 130, 246, 0.1);
   }
 }
 

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, useMotionValue, useTransform } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Users, 
   BookOpen, 
@@ -15,13 +15,12 @@ import {
   Rocket
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useScrollAnimation } from '../hooks/useScrollAnimation';
 import { batchAPI, facultyAPI, subjectAPI, classroomAPI } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CosmicBackground from '../components/CosmicBackground';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { scrollY } = useScrollAnimation();
   const [stats, setStats] = useState({
     batches: 0,
     faculty: 0,
@@ -30,41 +29,11 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   
-  // Mouse tracking for rotation effects
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const cardRef = useRef(null);
-  
-  // Transform mouse position to rotation values
-  const rotateX = useTransform(mouseY, [-300, 300], [15, -15]);
-  const rotateY = useTransform(mouseX, [-300, 300], [-15, 15]);
-  
-  // Additional transforms for individual elements
-  const iconRotateX = useTransform(mouseY, [-300, 300], [10, -10]);
-  const iconRotateY = useTransform(mouseX, [-300, 300], [-10, 10]);
-  const statusRotateX = useTransform(mouseY, [-300, 300], [5, -5]);
-  const statusRotateY = useTransform(mouseX, [-300, 300], [-5, 5]);
 
   useEffect(() => {
     fetchStats();
   }, []);
 
-  // Mouse event handler for rotation effects
-  const handleMouseMove = (event) => {
-    if (cardRef.current) {
-      const rect = cardRef.current.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      
-      mouseX.set(event.clientX - centerX);
-      mouseY.set(event.clientY - centerY);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    mouseX.set(0);
-    mouseY.set(0);
-  };
 
   const fetchStats = async () => {
     try {
@@ -168,7 +137,50 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 space-y-8 relative">
+      {/* Cosmic Background */}
+      <CosmicBackground type="stars" />
+      <CosmicBackground type="light-spot" followMouse={true} />
+      
+      {/* Cosmic Neon Decorations */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-xl"
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.6, 0.3],
+          }}
+          transition={{
+            duration: 4,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        <motion.div
+          className="absolute top-40 right-32 w-24 h-24 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 rounded-full blur-xl"
+          animate={{
+            scale: [1, 0.8, 1],
+            opacity: [0.4, 0.7, 0.4],
+          }}
+          transition={{
+            duration: 6,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        <motion.div
+          className="absolute bottom-32 left-1/3 w-40 h-40 bg-gradient-to-r from-purple-500/10 to-cyan-500/10 rounded-full blur-2xl"
+          animate={{
+            scale: [1, 1.3, 1],
+            opacity: [0.2, 0.5, 0.2],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </div>
       {/* Hero Section - CodeHelp Inspired */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
@@ -177,15 +189,7 @@ const Dashboard = () => {
         className="relative overflow-hidden"
       >
         <motion.div 
-          ref={cardRef}
           className="hero-card cursor-pointer"
-          style={{
-            rotateX,
-            rotateY,
-            transformStyle: "preserve-3d"
-          }}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
           whileHover={{ scale: 1.02 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
@@ -199,10 +203,6 @@ const Dashboard = () => {
               className="flex items-center space-x-4 mb-6"
             >
               <motion.div
-                style={{
-                  rotateX: iconRotateX,
-                  rotateY: iconRotateY
-                }}
                 className="p-3 bg-codehelp-gradient rounded-2xl"
               >
                 <Sparkles className="h-8 w-8 text-white" />
@@ -233,10 +233,6 @@ const Dashboard = () => {
             >
               <motion.div 
                 className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2"
-                style={{
-                  rotateX: statusRotateX,
-                  rotateY: statusRotateY
-                }}
                 whileHover={{ scale: 1.05 }}
               >
                 <Clock className="h-5 w-5 text-codehelp-blue" />
@@ -246,10 +242,6 @@ const Dashboard = () => {
               </motion.div>
               <motion.div 
                 className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2"
-                style={{
-                  rotateX: statusRotateX,
-                  rotateY: statusRotateY
-                }}
                 whileHover={{ scale: 1.05 }}
               >
                 <Zap className="h-5 w-5 text-codehelp-orange" />
@@ -257,10 +249,6 @@ const Dashboard = () => {
               </motion.div>
               <motion.div 
                 className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2"
-                style={{
-                  rotateX: statusRotateX,
-                  rotateY: statusRotateY
-                }}
                 whileHover={{ scale: 1.05 }}
               >
                 <div className="w-2 h-2 bg-codehelp-green rounded-full animate-pulse" />
@@ -269,33 +257,6 @@ const Dashboard = () => {
             </motion.div>
           </div>
           
-          {/* Floating elements */}
-          <motion.div
-            className="absolute top-10 right-10 w-20 h-20 bg-codehelp-blue/20 rounded-full blur-xl"
-            animate={{
-              y: [0, -20, 0],
-              x: [0, 10, 0],
-              scale: [1, 1.1, 1],
-            }}
-            transition={{
-              duration: 6,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-          <motion.div
-            className="absolute bottom-10 left-10 w-16 h-16 bg-codehelp-purple/20 rounded-full blur-xl"
-            animate={{
-              y: [0, 15, 0],
-              x: [0, -10, 0],
-              scale: [1, 0.9, 1],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
         </motion.div>
       </motion.div>
 
@@ -388,10 +349,6 @@ const Dashboard = () => {
               {/* Background gradient */}
               <div className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-5 group-hover:opacity-10 transition-opacity duration-300`} />
               
-              {/* Shimmer effect */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 animate-shimmer" />
-              </div>
               
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-4">
