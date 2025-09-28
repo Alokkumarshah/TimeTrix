@@ -81,11 +81,14 @@ exports.generateTimetable = async function(req, res) {
         // PRIORITY 1: Place special classes first (lunch breaks and fixed slots)
         const batchSpecialClasses = specialClasses.filter(sc => sc.batch?.toString() === batch._id.toString());
         
-        // Place lunch breaks first
+        // Place lunch breaks first - they don't use classrooms or teachers
         for (const sc of batchSpecialClasses) {
           if (sc.type === 'lunch_break') {
             const periodsForBreak = (sc.slots && sc.slots.length) ? sc.slots : [];
             periodsForBreak.forEach(periodName => {
+              // Lunch breaks don't use classrooms or teachers - they're independent
+              // Generate unique ID for each lunch break entry
+              const lunchBreakId = `lunch_${batch._id}_${sc.day}_${periodName}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
               timetable.push({
                 batch: batch.name,
                 subject: 'Lunch Break',
@@ -101,7 +104,8 @@ exports.generateTimetable = async function(req, res) {
                 fallbackClassroom: false,
                 assignedClassroom: true,
                 fixedSlot: true,
-                specialClassId: sc._id
+                specialClassId: sc._id,
+                lunchBreakId: lunchBreakId
               });
             });
           }
@@ -152,6 +156,7 @@ exports.generateTimetable = async function(req, res) {
                   classroom = classrooms[0];
                 }
                 
+                // Only mark classroom and teacher as used for fixed slots (not lunch breaks)
                 let key = `${sc.day}-${periods.indexOf(periodName)}-${classroom._id}`;
                 let teacherKey = `${teacher ? teacher.name : 'TBD'}-${sc.day}-${periodName}`;
                 usedClassrooms[key] = true;
@@ -188,24 +193,33 @@ exports.generateTimetable = async function(req, res) {
           });
         }
         
-        // Get subjects that are NOT already placed as fixed slots
-        const fixedSubjectIds = batchSpecialClasses
+        // Get subjects that are already placed as fixed slots and their counts
+        const fixedSubjectCounts = {};
+        batchSpecialClasses
           .filter(sc => sc.type === 'fixed_slot' && sc.subject)
-          .map(sc => sc.subject.toString());
+          .forEach(sc => {
+            const subjectId = sc.subject.toString();
+            const periodsForFix = (sc.slots && sc.slots.length) ? sc.slots.length : 1;
+            fixedSubjectCounts[subjectId] = (fixedSubjectCounts[subjectId] || 0) + periodsForFix;
+          });
         
         for (const subjectId of batch.subjects) {
-          // Skip subjects that are already placed as fixed slots
-          if (fixedSubjectIds.includes(subjectId.toString())) {
-            continue;
-          }
           const subject = subjects.find(s => s._id.equals(subjectId));
           if (!subject) continue;
+          
+          const requiredPerWeek = subjectConstraints[subjectId.toString()].requiredPerWeek;
+          const fixedCount = fixedSubjectCounts[subjectId.toString()] || 0;
+          const remainingRequired = requiredPerWeek - fixedCount;
+          
+          // If all required classes are already placed as fixed slots, skip
+          if (remainingRequired <= 0) {
+            continue;
+          }
           const teacherId = subjectTeacherMap[subjectId.toString()];
           const teacher = faculties.find(f => f._id.equals(teacherId));
-          const requiredPerWeek = subjectConstraints[subjectId.toString()].requiredPerWeek;
           const maxPerDay = subjectConstraints[subjectId.toString()].maxPerDay;
           let slots = [];
-          let remaining = requiredPerWeek;
+          let remaining = remainingRequired; // Use the calculated remaining required classes
           let daySlots = Array(days.length).fill(0);
           let dayOrder = Array.from(Array(days.length).keys());
           // Check for teacher slot constraints for this batch/teacher
@@ -237,12 +251,39 @@ exports.generateTimetable = async function(req, res) {
           slots.forEach(slot => {
             let p = slot.period ? periods.indexOf(slot.period) : Math.floor(Math.random() * periods.length);
             if (p === -1) p = Math.floor(Math.random() * periods.length);
-            // Respect lunch breaks: if chosen period is a lunch break for this batch/day, pick another
+            // Lunch breaks don't block other batches from using the same slot
+            // Only avoid lunch breaks for the current batch itself
             const lunchSet = lunchByBatchDay[batch._id.toString()]?.[slot.day];
             if (lunchSet) {
               let guard = 0;
               while (lunchSet.has(periods[p]) && guard < 10) {
                 p = Math.floor(Math.random() * periods.length);
+                guard++;
+              }
+            }
+            
+            // Additional check: make sure we're not overriding an already placed lunch break
+            const existingLunchBreak = timetable.find(entry => 
+              entry.batch === batch.name && 
+              entry.day === slot.day && 
+              entry.period === periods[p] && 
+              entry.subject === 'Lunch Break'
+            );
+            if (existingLunchBreak) {
+              // Find a different period that doesn't have a lunch break
+              let guard = 0;
+              while (guard < 10) {
+                const testPeriod = periods[Math.floor(Math.random() * periods.length)];
+                const hasLunchBreak = timetable.some(entry => 
+                  entry.batch === batch.name && 
+                  entry.day === slot.day && 
+                  entry.period === testPeriod && 
+                  entry.subject === 'Lunch Break'
+                );
+                if (!hasLunchBreak) {
+                  p = periods.indexOf(testPeriod);
+                  break;
+                }
                 guard++;
               }
             }
@@ -398,30 +439,8 @@ exports.generateTimetable = async function(req, res) {
           });
         }
       }
-      // Insert lunch entries for visibility (green)
-      for (const b of batchList) {
-        const lunchDays = lunchByBatchDay[b._id.toString()] || {};
-        Object.keys(lunchDays).forEach(day => {
-          lunchDays[day].forEach(periodName => {
-            timetable.push({
-              batch: b.name,
-              subject: 'Lunch Break',
-              faculty: '',
-              classroom: '',
-              department: b.department,
-              shift: b.shift,
-              day,
-              period: periodName,
-              startTime: '',
-              endTime: '',
-              preferred: true,
-              fallbackClassroom: false,
-              assignedClassroom: true
-            });
-          });
-        });
-      }
-      // Fixed slots are tagged on actual subject entries above; no extra markers needed
+      // Lunch entries are already added in the special classes section above
+      // No need to add them again here to avoid duplicates
       return timetable;
     }
 
@@ -469,26 +488,32 @@ exports.generateTimetable = async function(req, res) {
           score -= 200; // Very heavy penalty for fallback classroom usage
         }
         
-        // Batch slot conflict (same batch, same time)
-        if (slotMap[key]) {
-          score -= 100; // Heavy penalty for batch conflicts
-          conflictCount++;
+        // Batch slot conflict (same batch, same time) - but lunch breaks don't conflict
+        if (entry.subject !== 'Lunch Break') {
+          if (slotMap[key]) {
+            score -= 100; // Heavy penalty for batch conflicts
+            conflictCount++;
+          }
+          slotMap[key] = true;
         }
-        slotMap[key] = true;
         
-        // Teacher conflict (same teacher, same time)
-        if (teacherSlotMap[teacherKey]) {
-          score -= 150; // Heavier penalty for teacher conflicts
-          conflictCount++;
+        // Teacher conflict (same teacher, same time) - but lunch breaks don't have teachers
+        if (entry.subject !== 'Lunch Break') {
+          if (teacherSlotMap[teacherKey]) {
+            score -= 150; // Heavier penalty for teacher conflicts
+            conflictCount++;
+          }
+          teacherSlotMap[teacherKey] = true;
         }
-        teacherSlotMap[teacherKey] = true;
         
-        // Classroom conflict (same classroom, same time)
-        if (classroomSlotMap[classKey]) {
-          score -= 120; // Heavy penalty for classroom conflicts
-          conflictCount++;
+        // Classroom conflict (same classroom, same time) - but lunch breaks don't use classrooms
+        if (entry.subject !== 'Lunch Break') {
+          if (classroomSlotMap[classKey]) {
+            score -= 120; // Heavy penalty for classroom conflicts
+            conflictCount++;
+          }
+          classroomSlotMap[classKey] = true;
         }
-        classroomSlotMap[classKey] = true;
         
         // Check classroom constraint violations
         let batchId = batches.find(b => b.name === entry.batch)?._id;
@@ -636,6 +661,23 @@ exports.generateTimetable = async function(req, res) {
       let classroomSlotMap = {};
       
       timetable.forEach(entry => {
+        // For lunch breaks, only check conflicts within the same batch (by name)
+        if (entry.subject === 'Lunch Break') {
+          let key = `${entry.batch}-${entry.day}-${entry.period}`;
+          if (slotMap[key]) {
+            conflicts.push({
+              batch: entry.batch,
+              day: entry.day,
+              period: entry.period,
+              type: 'batch',
+              subject: entry.subject,
+              lunchBreakId: entry.lunchBreakId
+            });
+          }
+          slotMap[key] = true;
+          return;
+        }
+        
         let key = `${entry.batch}-${entry.day}-${entry.period}`;
         let teacherKey = `${entry.faculty}-${entry.day}-${entry.period}`;
         let classKey = `${entry.day}-${entry.period}-${entry.classroom}`;
@@ -726,9 +768,10 @@ exports.generateTimetable = async function(req, res) {
       return bestSlot;
     }
     
-    // Helper function to check if classroom is occupied
+    // Helper function to check if classroom is occupied (excluding lunch breaks)
     function isClassroomOccupied(timetable, day, period, classroom, excludeBatch) {
       return timetable.some(entry => 
+        entry.subject !== 'Lunch Break' && // Lunch breaks don't occupy classrooms
         entry.day === day && 
         entry.period === period && 
         entry.classroom === classroom && 
@@ -775,9 +818,20 @@ exports.generateTimetable = async function(req, res) {
     function detectConflicts(timetable) {
       let teacherSlotMap = {}; // Track teacher assignments
       let classroomSlotMap = {}; // Track classroom assignments
+      let batchSlotMap = {}; // Track batch slot assignments (for lunch breaks)
       
       // First pass: collect all assignments
       timetable.forEach(entry => {
+        if (entry.subject === 'Lunch Break') {
+          // For lunch breaks, only track batch conflicts (same batch, same time)
+          let batchKey = `${entry.batch}-${entry.day}-${entry.period}`;
+          if (!batchSlotMap[batchKey]) {
+            batchSlotMap[batchKey] = [];
+          }
+          batchSlotMap[batchKey].push(entry);
+          return;
+        }
+        
         let teacherKey = `${entry.faculty}-${entry.day}-${entry.period}`;
         let classroomKey = `${entry.classroom}-${entry.day}-${entry.period}`;
         
@@ -794,6 +848,15 @@ exports.generateTimetable = async function(req, res) {
       
       // Second pass: mark conflicts
       timetable.forEach(entry => {
+        if (entry.subject === 'Lunch Break') {
+          // For lunch breaks, only check batch conflicts (same batch, same time)
+          let batchKey = `${entry.batch}-${entry.day}-${entry.period}`;
+          entry.hasTeacherCollision = false; // Lunch breaks don't have teachers
+          entry.hasClassroomCollision = false; // Lunch breaks don't use classrooms
+          entry.hasBatchCollision = batchSlotMap[batchKey].length > 1; // Check for duplicate lunch breaks in same batch/time
+          return;
+        }
+        
         let teacherKey = `${entry.faculty}-${entry.day}-${entry.period}`;
         let classroomKey = `${entry.classroom}-${entry.day}-${entry.period}`;
         
@@ -802,6 +865,7 @@ exports.generateTimetable = async function(req, res) {
         
         // Check for classroom conflicts (same classroom used by multiple batches at same time)
         entry.hasClassroomCollision = classroomSlotMap[classroomKey].length > 1;
+        entry.hasBatchCollision = false; // Regular subjects don't have batch collisions
       });
       
       return timetable;
@@ -874,6 +938,17 @@ exports.generateTimetable = async function(req, res) {
     best.forEach(e => {
       if (!byBatchName[e.batch]) byBatchName[e.batch] = new Set();
       byBatchName[e.batch].add(`${e.day}|${e.period}|${e.subject}`);
+    });
+    
+    // Debug: Log what's actually in the timetable for each batch
+    console.log('=== Timetable Debug ===');
+    batches.forEach(b => {
+      const batchEntries = best.filter(e => e.batch === b.name);
+      console.log(`Batch ${b.name} has ${batchEntries.length} entries:`);
+      batchEntries.forEach(e => {
+        const lunchId = e.lunchBreakId ? ` (ID: ${e.lunchBreakId.substring(0, 20)}...)` : '';
+        console.log(`  ${e.day} ${e.period}: ${e.subject} (fixedSlot: ${e.fixedSlot})${lunchId}`);
+      });
     });
     batches.forEach(b => {
       const reqs = requiredByBatch[b._id.toString()] || [];

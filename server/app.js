@@ -104,7 +104,15 @@ const migrateExistingData = async () => {
     for (const batch of batches) {
       if (batch.subjectTeacherAssignments && batch.subjectTeacherAssignments.length > 0) {
         const teacherIds = batch.subjectTeacherAssignments
-          .map(assignment => assignment.teacher._id || assignment.teacher)
+          .map(assignment => {
+            if (assignment.teacher && assignment.teacher._id) {
+              return assignment.teacher._id;
+            } else if (assignment.teacher) {
+              return assignment.teacher;
+            }
+            return null;
+          })
+          .filter(id => id !== null) // Remove null values
           .filter((id, index, self) => self.indexOf(id) === index); // Remove duplicates
         
         if (JSON.stringify(batch.teachers.sort()) !== JSON.stringify(teacherIds.sort())) {
@@ -350,7 +358,15 @@ app.post('/api/refresh-data', async (req, res) => {
     for (const batch of batches) {
       if (batch.subjectTeacherAssignments && batch.subjectTeacherAssignments.length > 0) {
         const teacherIds = batch.subjectTeacherAssignments
-          .map(assignment => assignment.teacher._id || assignment.teacher)
+          .map(assignment => {
+            if (assignment.teacher && assignment.teacher._id) {
+              return assignment.teacher._id;
+            } else if (assignment.teacher) {
+              return assignment.teacher;
+            }
+            return null;
+          })
+          .filter(id => id !== null) // Remove null values
           .filter((id, index, self) => self.indexOf(id) === index);
         
         await Batch.findByIdAndUpdate(batch._id, { teachers: teacherIds });

@@ -14,6 +14,7 @@ const SpecialClasses = () => {
   const [saving, setSaving] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [bulk, setBulk] = useState({ days: {} });
+  const [selectedBatch, setSelectedBatch] = useState('');
   const [form, setForm] = useState({
     name: 'Lunch Break',
     type: 'lunch_break',
@@ -42,11 +43,13 @@ const SpecialClasses = () => {
     })();
   }, []);
 
+  // Auto-fill batch selection when selectedBatch changes
   useEffect(() => {
-    if (form.batch) {
-      setShowBulk(true);
+    if (selectedBatch) {
+      setForm(prev => ({ ...prev, batch: selectedBatch }));
+      setFixedForm(prev => ({ ...prev, batch: selectedBatch }));
     }
-  }, [form.batch]);
+  }, [selectedBatch]);
 
   useEffect(() => {
     // group by batch
@@ -180,35 +183,55 @@ const SpecialClasses = () => {
         </div>
       </motion.div>
 
+      {/* Batch Selection */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
         className="card"
       >
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Add Lunch Break</h3>
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Select Batch</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm mb-2">Batch</label>
+            <label className="block text-sm mb-2">Choose Batch to Manage</label>
             <select
               className="input-field"
-              value={form.batch}
-              onChange={e => setForm({ ...form, batch: e.target.value })}
+              value={selectedBatch}
+              onChange={e => setSelectedBatch(e.target.value)}
             >
-              <option value="">Select batch</option>
+              <option value="">Select a batch</option>
               {batches.map(b => (
                 <option key={b._id} value={b._id}>{b.name} - {b.department}</option>
               ))}
             </select>
           </div>
-          <div className="flex items-end">
-            <button onClick={() => setShowBulk(true)} disabled={!form.batch} className="btn-primary flex items-center space-x-2">
-              <Plus className="h-4 w-4" />
-              <span>Configure Days & Periods</span>
-            </button>
-          </div>
         </div>
       </motion.div>
+
+      {selectedBatch && (
+        <>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="card"
+          >
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Add Lunch Break</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm mb-2">Batch</label>
+                <div className="input-field bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
+                  {batches.find(b => b._id === selectedBatch)?.name} - {batches.find(b => b._id === selectedBatch)?.department}
+                </div>
+              </div>
+              <div className="flex items-end">
+                <button onClick={() => setShowBulk(true)} disabled={!form.batch} className="btn-primary flex items-center space-x-2">
+                  <Plus className="h-4 w-4" />
+                  <span>Configure Days & Periods</span>
+                </button>
+              </div>
+            </div>
+          </motion.div>
 
       {showBulk && (
         <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-start justify-center pt-16">
@@ -273,95 +296,101 @@ const SpecialClasses = () => {
         </div>
       )}
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="card"
-      >
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Configured Special Slots</h3>
-        {items.length === 0 ? (
-          <div className="text-slate-500">No special classes configured yet.</div>
-        ) : (
-          <div className="space-y-4">
-            {batches.map(b => (
-              <div key={b._id} className="">
-                <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">{b.name} - {b.department}</div>
-                {(grouped[b._id] && grouped[b._id].length > 0) ? (
-                  <div className="space-y-2">
-                    {grouped[b._id].map(item => (
-                      <div key={item._id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="text-sm">
-                          <div className="font-medium">
-                            {item.type === 'lunch_break' ? 'Lunch Break' : item.type === 'fixed_slot' ? 'Fixed Slot' : item.name}
-                          </div>
-                          <div className="text-slate-500">
-                            {item.day} • {(item.slots || []).join(', ')} {item.subject ? `• ${(typeof item.subject === 'object' ? item.subject.name : subjects.find(s => s._id === item.subject)?.name) || ''}` : ''}
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <button onClick={() => removeItem(item._id)} className="btn-secondary text-red-600 flex items-center space-x-1">
-                            <Trash2 className="h-4 w-4" />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-xs text-slate-500">No entries</div>
-                )}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12 }}
+            className="card"
+          >
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Fixed Slot Classes</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm mb-2">Batch</label>
+                <div className="input-field bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
+                  {batches.find(b => b._id === selectedBatch)?.name} - {batches.find(b => b._id === selectedBatch)?.department}
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.12 }}
-        className="card"
-      >
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Fixed Slot Classes</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm mb-2">Batch</label>
-            <select className="input-field" value={fixedForm.batch} onChange={e => setFixedForm({ ...fixedForm, batch: e.target.value })}>
-              <option value="">Select batch</option>
-              {batches.map(b => (<option key={b._id} value={b._id}>{b.name} - {b.department}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm mb-2">Subject</label>
-            <select className="input-field" value={fixedForm.subject} onChange={e => setFixedForm({ ...fixedForm, subject: e.target.value })}>
-              <option value="">Select subject</option>
-              {subjects.map(s => (<option key={s._id} value={s._id}>{s.name}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm mb-2">Day</label>
-            <select className="input-field" value={fixedForm.day} onChange={e => setFixedForm({ ...fixedForm, day: e.target.value })}>
-              <option value="">Select day</option>
-              {days.map(d => (<option key={d} value={d}>{d}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm mb-2">Periods</label>
-            <div className="grid grid-cols-2 gap-2">
-              {periods.map(p => (
-                <label key={p} className="flex items-center space-x-2">
-                  <input type="checkbox" checked={fixedForm.slots.includes(p)} onChange={() => setFixedForm(prev => ({ ...prev, slots: prev.slots.includes(p) ? prev.slots.filter(s => s !== p) : [...prev.slots, p] }))} />
-                  <span className="text-sm">{p}</span>
-                </label>
-              ))}
+              <div>
+                <label className="block text-sm mb-2">Subject</label>
+                <select className="input-field" value={fixedForm.subject} onChange={e => setFixedForm({ ...fixedForm, subject: e.target.value })}>
+                  <option value="">Select subject</option>
+                  {subjects.map(s => (<option key={s._id} value={s._id}>{s.name}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm mb-2">Day</label>
+                <select className="input-field" value={fixedForm.day} onChange={e => setFixedForm({ ...fixedForm, day: e.target.value })}>
+                  <option value="">Select day</option>
+                  {days.map(d => (<option key={d} value={d}>{d}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm mb-2">Periods</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {periods.map(p => (
+                    <label key={p} className="flex items-center space-x-2">
+                      <input type="checkbox" checked={fixedForm.slots.includes(p)} onChange={() => setFixedForm(prev => ({ ...prev, slots: prev.slots.includes(p) ? prev.slots.filter(s => s !== p) : [...prev.slots, p] }))} />
+                      <span className="text-sm">{p}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-        <div className="flex justify-end mt-4">
-          <button className="btn-primary" onClick={createFixed} disabled={saving}>{saving ? 'Saving...' : 'Add Fixed Slot'}</button>
-        </div>
-      </motion.div>
+            <div className="flex justify-end mt-4">
+              <button className="btn-primary" onClick={createFixed} disabled={saving}>{saving ? 'Saving...' : 'Add Fixed Slot'}</button>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.14 }}
+            className="card"
+          >
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Configured Special Slots</h3>
+            {(() => {
+              const selectedBatchData = batches.find(b => b._id === selectedBatch);
+              const selectedBatchItems = grouped[selectedBatch] || [];
+              
+              if (!selectedBatchData) {
+                return <div className="text-slate-500">No batch selected.</div>;
+              }
+              
+              if (selectedBatchItems.length === 0) {
+                return <div className="text-slate-500">No special classes configured for {selectedBatchData.name} - {selectedBatchData.department}.</div>;
+              }
+              
+              return (
+                <div className="space-y-4">
+                  <div className="">
+                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">{selectedBatchData.name} - {selectedBatchData.department}</div>
+                    <div className="space-y-2">
+                      {selectedBatchItems.map(item => (
+                        <div key={item._id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="text-sm">
+                            <div className="font-medium">
+                              {item.type === 'lunch_break' ? 'Lunch Break' : item.type === 'fixed_slot' ? 'Fixed Slot' : item.name}
+                            </div>
+                            <div className="text-slate-500">
+                              {item.day} • {(item.slots || []).join(', ')} {item.subject ? `• ${(typeof item.subject === 'object' ? item.subject.name : subjects.find(s => s._id === item.subject)?.name) || ''}` : ''}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button onClick={() => removeItem(item._id)} className="btn-secondary text-red-600 flex items-center space-x-1">
+                              <Trash2 className="h-4 w-4" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </motion.div>
+        </>
+      )}
     </div>
   );
 };
