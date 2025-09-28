@@ -37,6 +37,7 @@ const Layout = ({ children }) => {
     { name: 'Constraints', href: '/constraints', icon: Settings, color: 'text-indigo-500' },
     { name: 'Special Classes', href: '/special-classes', icon: Calendar, color: 'text-pink-500' },
     { name: 'Timetable', href: '/timetable', icon: Calendar, color: 'text-cyan-500' },
+    { name: 'Saved Timetables', href: '/saved-timetables', icon: Calendar, color: 'text-emerald-500' },
   ];
 
   const handleLogout = async () => {

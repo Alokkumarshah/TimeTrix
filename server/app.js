@@ -137,7 +137,7 @@ const migrateExistingData = async () => {
 };
 
 // MongoDB connection
-const mongoUri = process.env.MONGO_URI;
+const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/class_scheduling';
 const mongooseConnection = mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true
@@ -213,6 +213,74 @@ app.post('/login', async (req, res) => {
   }
   req.session.userId = user._id;
   res.redirect('/dashboard');
+});
+
+// API login endpoint for React app
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid username or password.' });
+    }
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid username or password.' });
+    }
+    req.session.userId = user._id;
+    res.status(200).json({ 
+      success: true, 
+      message: 'Login successful',
+      user: {
+        id: user._id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API register endpoint for React app
+app.post('/api/register', async (req, res) => {
+  const { username, password, name, email, role } = req.body;
+  try {
+    const existing = await User.findOne({ username });
+    if (existing) {
+      return res.status(400).json({ error: 'Username already exists.' });
+    }
+    const user = new User({ username, password, name, email, role });
+    await user.save();
+    req.session.userId = user._id;
+    res.status(200).json({ 
+      success: true, 
+      message: 'Registration successful',
+      user: {
+        id: user._id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registration failed. Please try again.' });
+  }
+});
+
+// API logout endpoint for React app
+app.get('/api/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Could not log out' });
+    }
+    res.status(200).json({ success: true, message: 'Logged out successfully' });
+  });
 });
 
 // Dashboard route

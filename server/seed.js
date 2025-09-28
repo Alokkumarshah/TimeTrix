@@ -1,89 +1,255 @@
-// seed.js
-// Run with: node seed.js
-
 const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
+
+// Import models
+const User = require('./models/User');
 const Batch = require('./models/Batch');
-const Classroom = require('./models/Classroom');
 const Subject = require('./models/Subject');
 const Faculty = require('./models/Faculty');
+const Classroom = require('./models/Classroom');
+const Constraint = require('./models/Constraint');
+const SpecialClass = require('./models/SpecialClass');
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/class_scheduling';
+// Connect to MongoDB
+mongoose.connect('mongodb://localhost:27017/class_scheduling', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 
-async function seed() {
-  await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+async function seedDatabase() {
+  try {
+    console.log('Starting database seeding...');
 
   // Clear existing data
-  await Promise.all([
-    Batch.deleteMany({}),
-    Classroom.deleteMany({}),
-    Subject.deleteMany({}),
-    Faculty.deleteMany({}),
-  ]);
+    await User.deleteMany({});
+    await Batch.deleteMany({});
+    await Subject.deleteMany({});
+    await Faculty.deleteMany({});
+    await Classroom.deleteMany({});
+    await Constraint.deleteMany({});
+    await SpecialClass.deleteMany({});
+    
+    console.log('Cleared existing data');
 
-  // Create Classrooms
-  const classrooms = await Classroom.insertMany([
-    { name: 'A101', capacity: 40, type: 'classroom', department: 'CSE', shift: 'morning' },
-    { name: 'A102', capacity: 40, type: 'classroom', department: 'CSE', shift: 'evening' },
-    { name: 'B201', capacity: 35, type: 'classroom', department: 'ECE', shift: 'morning' },
-    { name: 'B202', capacity: 35, type: 'classroom', department: 'ECE', shift: 'evening' },
-    { name: 'Lab1', capacity: 25, type: 'laboratory', department: 'CSE', shift: 'morning' },
-    { name: 'Lab2', capacity: 25, type: 'laboratory', department: 'ECE', shift: 'evening' },
-  ]);
+    // Create admin user
+    const adminUser = new User({
+      username: 'admin',
+      password: 'admin123',
+      role: 'admin',
+      name: 'System Administrator',
+      email: 'admin@timetable.com'
+    });
+    await adminUser.save();
+    console.log('Created admin user');
 
-  // Create Subjects
-  const subjects = await Subject.insertMany([
-    { name: 'Mathematics I', code: 'MATH101', department: 'CSE', semester: 1, isElective: false, requiredClassesPerWeek: 4, maxClassesPerDay: 1 },
-    { name: 'Physics', code: 'PHY101', department: 'CSE', semester: 1, isElective: false, requiredClassesPerWeek: 3, maxClassesPerDay: 1 },
-    { name: 'Programming', code: 'CSE101', department: 'CSE', semester: 1, isElective: false, requiredClassesPerWeek: 4, maxClassesPerDay: 1 },
-    { name: 'Mathematics II', code: 'MATH201', department: 'CSE', semester: 2, isElective: false, requiredClassesPerWeek: 4, maxClassesPerDay: 1 },
-    { name: 'Electronics', code: 'ECE101', department: 'ECE', semester: 1, isElective: false, requiredClassesPerWeek: 3, maxClassesPerDay: 1 },
-    { name: 'Digital Logic', code: 'ECE201', department: 'ECE', semester: 2, isElective: false, requiredClassesPerWeek: 4, maxClassesPerDay: 1 },
-    { name: 'Data Structures', code: 'CSE201', department: 'CSE', semester: 3, isElective: false, requiredClassesPerWeek: 4, maxClassesPerDay: 1 },
-    { name: 'Algorithms', code: 'CSE301', department: 'CSE', semester: 5, isElective: false, requiredClassesPerWeek: 4, maxClassesPerDay: 1 },
-    { name: 'Microprocessors', code: 'ECE301', department: 'ECE', semester: 5, isElective: false, requiredClassesPerWeek: 3, maxClassesPerDay: 1 },
-    { name: 'Operating Systems', code: 'CSE401', department: 'CSE', semester: 7, isElective: false, requiredClassesPerWeek: 4, maxClassesPerDay: 1 },
-    { name: 'VLSI Design', code: 'ECE401', department: 'ECE', semester: 7, isElective: false, requiredClassesPerWeek: 3, maxClassesPerDay: 1 },
-    { name: 'Machine Learning', code: 'CSE402', department: 'CSE', semester: 8, isElective: true, requiredClassesPerWeek: 2, maxClassesPerDay: 1 },
-    { name: 'Embedded Systems', code: 'ECE402', department: 'ECE', semester: 8, isElective: true, requiredClassesPerWeek: 2, maxClassesPerDay: 1 },
-  ]);
+    // Create subjects (6 classes with common subjects)
+    const subjects = [];
+    const subjectData = [
+      { name: 'Mathematics', code: 'MATH101', department: 'Mathematics', semester: 1, requiredClassesPerWeek: 4, maxClassesPerDay: 2 },
+      { name: 'Physics', code: 'PHYS101', department: 'Physics', semester: 1, requiredClassesPerWeek: 3, maxClassesPerDay: 2 },
+      { name: 'Chemistry', code: 'CHEM101', department: 'Chemistry', semester: 1, requiredClassesPerWeek: 3, maxClassesPerDay: 2 },
+      { name: 'English', code: 'ENG101', department: 'English', semester: 1, requiredClassesPerWeek: 2, maxClassesPerDay: 1 },
+      { name: 'Computer Science', code: 'CS101', department: 'Computer Science', semester: 1, requiredClassesPerWeek: 4, maxClassesPerDay: 2 },
+      { name: 'Engineering Drawing', code: 'ED101', department: 'Engineering', semester: 1, requiredClassesPerWeek: 2, maxClassesPerDay: 1 }
+    ];
 
-  // Create Faculty
-  const faculty = await Faculty.insertMany([
-    { name: 'Dr. A Sharma', email: 'asharma@univ.edu', department: 'CSE', maxLoadPerWeek: 16, averageLeavesPerMonth: 1, subjects: [subjects[0]._id, subjects[2]._id], semestersTaught: [ { subject: subjects[0]._id, semester: 1 }, { subject: subjects[2]._id, semester: 3 } ] },
-    { name: 'Dr. B Singh', email: 'bsingh@univ.edu', department: 'CSE', maxLoadPerWeek: 16, averageLeavesPerMonth: 1, subjects: [subjects[3]._id, subjects[6]._id], semestersTaught: [ { subject: subjects[3]._id, semester: 2 }, { subject: subjects[6]._id, semester: 3 } ] },
-    { name: 'Dr. C Gupta', email: 'cgupta@univ.edu', department: 'CSE', maxLoadPerWeek: 16, averageLeavesPerMonth: 1, subjects: [subjects[7]._id, subjects[9]._id], semestersTaught: [ { subject: subjects[7]._id, semester: 5 }, { subject: subjects[9]._id, semester: 7 } ] },
-    { name: 'Dr. D Verma', email: 'dverma@univ.edu', department: 'ECE', maxLoadPerWeek: 16, averageLeavesPerMonth: 1, subjects: [subjects[4]._id, subjects[5]._id], semestersTaught: [ { subject: subjects[4]._id, semester: 1 }, { subject: subjects[5]._id, semester: 2 } ] },
-    { name: 'Dr. E Rao', email: 'erao@univ.edu', department: 'ECE', maxLoadPerWeek: 16, averageLeavesPerMonth: 1, subjects: [subjects[8]._id, subjects[10]._id], semestersTaught: [ { subject: subjects[8]._id, semester: 5 }, { subject: subjects[10]._id, semester: 7 } ] },
-    { name: 'Dr. F Kumar', email: 'fkumar@univ.edu', department: 'CSE', maxLoadPerWeek: 16, averageLeavesPerMonth: 1, subjects: [subjects[11]._id], semestersTaught: [ { subject: subjects[11]._id, semester: 8 } ] },
-    { name: 'Dr. G Patel', email: 'gpatel@univ.edu', department: 'ECE', maxLoadPerWeek: 16, averageLeavesPerMonth: 1, subjects: [subjects[12]._id], semestersTaught: [ { subject: subjects[12]._id, semester: 8 } ] },
-    { name: 'Dr. H Mehta', email: 'hmehta@univ.edu', department: 'CSE', maxLoadPerWeek: 16, averageLeavesPerMonth: 1, subjects: [subjects[1]._id], semestersTaught: [ { subject: subjects[1]._id, semester: 1 } ] },
-    { name: 'Dr. I Joshi', email: 'ijoshi@univ.edu', department: 'ECE', maxLoadPerWeek: 16, averageLeavesPerMonth: 1, subjects: [subjects[4]._id, subjects[5]._id], semestersTaught: [ { subject: subjects[4]._id, semester: 1 }, { subject: subjects[5]._id, semester: 2 } ] },
-    { name: 'Dr. J Nair', email: 'jnair@univ.edu', department: 'CSE', maxLoadPerWeek: 16, averageLeavesPerMonth: 1, subjects: [subjects[6]._id, subjects[7]._id], semestersTaught: [ { subject: subjects[6]._id, semester: 3 }, { subject: subjects[7]._id, semester: 5 } ] },
-  ]);
+    for (const subData of subjectData) {
+      const subject = new Subject(subData);
+      await subject.save();
+      subjects.push(subject);
+    }
+    console.log('Created subjects');
 
-  // Create Batches (2 per year, 4 years)
+    // Create classrooms (12 classrooms for 12 batches)
+    const classrooms = [];
+    for (let i = 1; i <= 12; i++) {
+      const classroom = new Classroom({
+        name: `Room ${i}`,
+        capacity: 50,
+        type: 'classroom',
+        department: 'General',
+        shift: i <= 6 ? 'Morning' : 'Evening'
+      });
+      await classroom.save();
+      classrooms.push(classroom);
+    }
+    console.log('Created classrooms');
+
+    // Create faculty with overlapping assignments
+    const faculties = [];
+    const facultyData = [
+      { name: 'Dr. John Smith', email: 'john.smith@university.edu', department: 'Mathematics', maxLoadPerWeek: 20 },
+      { name: 'Prof. Sarah Johnson', email: 'sarah.johnson@university.edu', department: 'Physics', maxLoadPerWeek: 18 },
+      { name: 'Dr. Michael Brown', email: 'michael.brown@university.edu', department: 'Chemistry', maxLoadPerWeek: 16 },
+      { name: 'Ms. Emily Davis', email: 'emily.davis@university.edu', department: 'English', maxLoadPerWeek: 14 },
+      { name: 'Dr. Robert Wilson', email: 'robert.wilson@university.edu', department: 'Computer Science', maxLoadPerWeek: 22 },
+      { name: 'Prof. Lisa Anderson', email: 'lisa.anderson@university.edu', department: 'Engineering', maxLoadPerWeek: 16 },
+      { name: 'Dr. David Taylor', email: 'david.taylor@university.edu', department: 'Mathematics', maxLoadPerWeek: 18 },
+      { name: 'Ms. Jennifer Martinez', email: 'jennifer.martinez@university.edu', department: 'Physics', maxLoadPerWeek: 16 },
+      { name: 'Dr. James Thompson', email: 'james.thompson@university.edu', department: 'Chemistry', maxLoadPerWeek: 14 },
+      { name: 'Prof. Amanda Garcia', email: 'amanda.garcia@university.edu', department: 'Computer Science', maxLoadPerWeek: 20 }
+    ];
+
+    for (const facData of facultyData) {
+      const faculty = new Faculty(facData);
+      await faculty.save();
+      faculties.push(faculty);
+    }
+    console.log('Created faculty');
+
+    // Assign subjects to faculty (creating overlaps)
+    const facultySubjectAssignments = [
+      { faculty: faculties[0], subjects: [subjects[0]] }, // Dr. John Smith - Mathematics
+      { faculty: faculties[1], subjects: [subjects[1]] }, // Prof. Sarah Johnson - Physics
+      { faculty: faculties[2], subjects: [subjects[2]] }, // Dr. Michael Brown - Chemistry
+      { faculty: faculties[3], subjects: [subjects[3]] }, // Ms. Emily Davis - English
+      { faculty: faculties[4], subjects: [subjects[4]] }, // Dr. Robert Wilson - Computer Science
+      { faculty: faculties[5], subjects: [subjects[5]] }, // Prof. Lisa Anderson - Engineering Drawing
+      { faculty: faculties[6], subjects: [subjects[0]] }, // Dr. David Taylor - Mathematics (overlap)
+      { faculty: faculties[7], subjects: [subjects[1]] }, // Ms. Jennifer Martinez - Physics (overlap)
+      { faculty: faculties[8], subjects: [subjects[2]] }, // Dr. James Thompson - Chemistry (overlap)
+      { faculty: faculties[9], subjects: [subjects[4]] }  // Prof. Amanda Garcia - Computer Science (overlap)
+    ];
+
+    for (const assignment of facultySubjectAssignments) {
+      assignment.faculty.subjects = assignment.subjects;
+      await assignment.faculty.save();
+    }
+    console.log('Assigned subjects to faculty');
+
+    // Create 12 batches (6 classes with 2 sections each)
+    const batches = [];
   const batchData = [
-    // 1st Year
-    { name: 'CSE 1A', department: 'CSE', semester: 1, studentsCount: 38, shift: 'morning', classrooms: [classrooms[0]._id], teachers: [faculty[0]._id, faculty[7]._id], subjects: [subjects[0]._id, subjects[1]._id, subjects[2]._id] },
-    { name: 'CSE 1B', department: 'CSE', semester: 1, studentsCount: 37, shift: 'evening', classrooms: [classrooms[1]._id], teachers: [faculty[0]._id, faculty[7]._id], subjects: [subjects[0]._id, subjects[1]._id, subjects[2]._id] },
-    // 2nd Year
-    { name: 'CSE 2A', department: 'CSE', semester: 3, studentsCount: 40, shift: 'morning', classrooms: [classrooms[0]._id], teachers: [faculty[1]._id, faculty[9]._id], subjects: [subjects[3]._id, subjects[6]._id] },
-    { name: 'ECE 2A', department: 'ECE', semester: 3, studentsCount: 36, shift: 'evening', classrooms: [classrooms[2]._id], teachers: [faculty[3]._id, faculty[8]._id], subjects: [subjects[4]._id, subjects[5]._id] },
-    // 3rd Year
-    { name: 'CSE 3A', department: 'CSE', semester: 5, studentsCount: 39, shift: 'morning', classrooms: [classrooms[0]._id], teachers: [faculty[2]._id, faculty[9]._id], subjects: [subjects[7]._id, subjects[8]._id] },
-    { name: 'ECE 3A', department: 'ECE', semester: 5, studentsCount: 35, shift: 'evening', classrooms: [classrooms[3]._id], teachers: [faculty[4]._id, faculty[8]._id], subjects: [subjects[8]._id, subjects[9]._id] },
-    // 4th Year
-    { name: 'CSE 4A', department: 'CSE', semester: 7, studentsCount: 38, shift: 'morning', classrooms: [classrooms[0]._id], teachers: [faculty[2]._id, faculty[5]._id], subjects: [subjects[9]._id, subjects[11]._id] },
-    { name: 'ECE 4A', department: 'ECE', semester: 7, studentsCount: 34, shift: 'evening', classrooms: [classrooms[3]._id], teachers: [faculty[4]._id, faculty[6]._id], subjects: [subjects[10]._id, subjects[12]._id] },
-  ];
+      { name: '1A', department: 'Engineering', semester: 1, studentsCount: 45, shift: 'Morning' },
+      { name: '1B', department: 'Engineering', semester: 1, studentsCount: 42, shift: 'Morning' },
+      { name: '2A', department: 'Engineering', semester: 1, studentsCount: 48, shift: 'Morning' },
+      { name: '2B', department: 'Engineering', semester: 1, studentsCount: 44, shift: 'Morning' },
+      { name: '3A', department: 'Engineering', semester: 1, studentsCount: 46, shift: 'Morning' },
+      { name: '3B', department: 'Engineering', semester: 1, studentsCount: 43, shift: 'Morning' },
+      { name: '4A', department: 'Engineering', semester: 1, studentsCount: 47, shift: 'Evening' },
+      { name: '4B', department: 'Engineering', semester: 1, studentsCount: 41, shift: 'Evening' },
+      { name: '5A', department: 'Engineering', semester: 1, studentsCount: 49, shift: 'Evening' },
+      { name: '5B', department: 'Engineering', semester: 1, studentsCount: 45, shift: 'Evening' },
+      { name: '6A', department: 'Engineering', semester: 1, studentsCount: 44, shift: 'Evening' },
+      { name: '6B', department: 'Engineering', semester: 1, studentsCount: 46, shift: 'Evening' }
+    ];
 
-  await Batch.insertMany(batchData);
+    for (let i = 0; i < batchData.length; i++) {
+      const batch = new Batch({
+        ...batchData[i],
+        subjects: subjects.map(s => s._id), // All batches have same subjects
+        classrooms: [classrooms[i]._id], // Each batch gets one classroom
+        teachers: [],
+        subjectTeacherAssignments: []
+      });
 
-  console.log('Sample data inserted successfully!');
-  await mongoose.disconnect();
+      // Create subject-teacher assignments with overlapping teachers
+      const subjectTeacherAssignments = [];
+      
+      // Assign teachers to subjects with overlaps
+      subjectTeacherAssignments.push({
+        subject: subjects[0]._id, // Mathematics
+        teacher: i % 2 === 0 ? faculties[0]._id : faculties[6]._id
+      });
+      
+      subjectTeacherAssignments.push({
+        subject: subjects[1]._id, // Physics
+        teacher: i % 2 === 0 ? faculties[1]._id : faculties[7]._id
+      });
+      
+      subjectTeacherAssignments.push({
+        subject: subjects[2]._id, // Chemistry
+        teacher: i % 2 === 0 ? faculties[2]._id : faculties[8]._id
+      });
+      
+      subjectTeacherAssignments.push({
+        subject: subjects[3]._id, // English
+        teacher: faculties[3]._id
+      });
+      
+      subjectTeacherAssignments.push({
+        subject: subjects[4]._id, // Computer Science
+        teacher: i % 2 === 0 ? faculties[4]._id : faculties[9]._id
+      });
+      
+      subjectTeacherAssignments.push({
+        subject: subjects[5]._id, // Engineering Drawing
+        teacher: faculties[5]._id
+      });
+
+      batch.subjectTeacherAssignments = subjectTeacherAssignments;
+      batch.teachers = [...new Set(subjectTeacherAssignments.map(sta => sta.teacher))];
+      
+      await batch.save();
+      batches.push(batch);
+    }
+    console.log('Created batches with overlapping teacher assignments');
+
+    // Create constraints for testing
+    const constraints = [];
+    
+    // Subject slot preferences (special constraints)
+    const specialConstraints = [
+      {
+        type: 'subject_slot_preference',
+        details: {
+          batch: batches[0]._id,
+          subject: subjects[0]._id,
+          day: 'Monday',
+          slot: 'Period 1'
+        }
+      },
+      {
+        type: 'subject_slot_preference',
+        details: {
+          batch: batches[1]._id,
+          subject: subjects[1]._id,
+          day: 'Tuesday',
+          slot: 'Period 2'
+        }
+      }
+    ];
+
+    for (const constraintData of specialConstraints) {
+      const constraint = new Constraint(constraintData);
+      await constraint.save();
+      constraints.push(constraint);
+    }
+    console.log('Created constraints');
+
+    console.log('\n=== SEEDING COMPLETE ===');
+    console.log(`Created ${subjects.length} subjects`);
+    console.log(`Created ${classrooms.length} classrooms`);
+    console.log(`Created ${faculties.length} faculty members`);
+    console.log(`Created ${batches.length} batches`);
+    console.log(`Created ${constraints.length} constraints`);
+    
+    console.log('\n=== TEACHER OVERLAP SUMMARY ===');
+    console.log('Mathematics: Dr. John Smith & Dr. David Taylor');
+    console.log('Physics: Prof. Sarah Johnson & Ms. Jennifer Martinez');
+    console.log('Chemistry: Dr. Michael Brown & Dr. James Thompson');
+    console.log('Computer Science: Dr. Robert Wilson & Prof. Amanda Garcia');
+    console.log('English: Ms. Emily Davis (no overlap)');
+    console.log('Engineering Drawing: Prof. Lisa Anderson (no overlap)');
+    
+    console.log('\n=== BATCH STRUCTURE ===');
+    console.log('Class 1: 1A (Morning), 1B (Morning)');
+    console.log('Class 2: 2A (Morning), 2B (Morning)');
+    console.log('Class 3: 3A (Morning), 3B (Morning)');
+    console.log('Class 4: 4A (Evening), 4B (Evening)');
+    console.log('Class 5: 5A (Evening), 5B (Evening)');
+    console.log('Class 6: 6A (Evening), 6B (Evening)');
+    
+    console.log('\n=== ALL BATCHES HAVE SAME SUBJECTS ===');
+    subjects.forEach(subject => {
+      console.log(`- ${subject.name} (${subject.code}): ${subject.requiredClassesPerWeek} classes/week, max ${subject.maxClassesPerDay}/day`);
+    });
+
+    process.exit(0);
+  } catch (error) {
+    console.error('Error seeding database:', error);
+    process.exit(1);
+  }
 }
 
-seed().catch(err => {
-  console.error('Seeding error:', err);
-  mongoose.disconnect();
-});
+seedDatabase();

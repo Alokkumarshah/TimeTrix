@@ -28,8 +28,20 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Redirect to login if unauthorized
-      window.location.href = '/login';
+      // Only redirect to login if not already on login or register page
+      // and if it's not a login/register API call
+      const currentPath = window.location.pathname;
+      const requestUrl = error.config?.url || '';
+      
+      // Don't redirect if:
+      // 1. Already on login/register page
+      // 2. Making a login/register API call
+      if (currentPath !== '/login' && 
+          currentPath !== '/register' && 
+          !requestUrl.includes('/login') && 
+          !requestUrl.includes('/register')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -37,9 +49,9 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  login: (credentials) => api.post('/login', credentials),
-  register: (userData) => api.post('/register', userData),
-  logout: () => api.get('/logout'),
+  login: (credentials) => api.post('/api/login', credentials),
+  register: (userData) => api.post('/api/register', userData),
+  logout: () => api.get('/api/logout'),
   getCurrentUser: () => api.get('/api/user/me'),
 };
 
@@ -108,6 +120,12 @@ export const timetableAPI = {
   generate: (batchId, allBatches = false) => api.post('/api/timetable/generate', { batchId, allBatches }),
   getTimetable: () => api.get('/timetable'),
   review: (timetableData) => api.post('/timetable/review', timetableData),
+  save: (timetableData) => api.post('/timetable/save', timetableData),
+  getSaved: (filters = {}) => api.get('/timetable/saved', { params: filters }),
+  getFilterOptions: () => api.get('/timetable/filter-options'),
+  getSavedById: (id) => api.get(`/timetable/saved/${id}`),
+  update: (id, data) => api.put(`/timetable/saved/${id}`, data),
+  delete: (id) => api.delete(`/timetable/saved/${id}`),
 };
 
 export default api;

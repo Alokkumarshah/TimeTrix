@@ -448,6 +448,92 @@ const Dashboard = () => {
         })}
       </motion.div>
 
+      {/* Room Conflicts Alert - CodeHelp Style */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="codehelp-feature-card hover-lift mouse-shadow border-l-4 border-yellow-400"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <motion.div
+              className="p-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl"
+              animate={{ rotate: [0, 360] }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            >
+              <Building className="h-6 w-6 text-white" />
+            </motion.div>
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 font-display">
+                Room Conflict Alert
+              </h2>
+              <div className="h-1 w-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full mt-1" />
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-full px-4 py-2">
+            <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+            <span className="text-sm font-semibold text-yellow-700 dark:text-yellow-300">Active</span>
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+            className="flex items-center space-x-4 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-700 hover-lift"
+          >
+            <motion.div
+              className="p-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl shadow-lg"
+              whileHover={{ scale: 1.1, rotate: 5 }}
+            >
+              <Building className="h-6 w-6 text-white" />
+            </motion.div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100">Room Conflicts Detected</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">Multiple batches assigned to same classroom at same time</p>
+            </div>
+            <motion.a
+              href="/timetable"
+              className="text-xs text-yellow-700 dark:text-yellow-300 font-semibold bg-yellow-100 dark:bg-yellow-900/30 px-2 py-1 rounded-full hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors duration-200"
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              whileHover={{ scale: 1.05 }}
+            >
+              Check Timetable
+            </motion.a>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.7 }}
+            className="flex items-center space-x-4 p-4 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 rounded-2xl border border-red-200 dark:border-red-700 hover-lift"
+          >
+            <motion.div
+              className="p-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl shadow-lg"
+              whileHover={{ scale: 1.1, rotate: 5 }}
+            >
+              <Users className="h-6 w-6 text-white" />
+            </motion.div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100">Teacher Conflicts Detected</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">Same teacher assigned to multiple classes simultaneously</p>
+            </div>
+            <motion.a
+              href="/timetable"
+              className="text-xs text-red-700 dark:text-red-300 font-semibold bg-red-100 dark:bg-red-900/30 px-2 py-1 rounded-full hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors duration-200"
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              whileHover={{ scale: 1.05 }}
+            >
+              Check Timetable
+            </motion.a>
+          </motion.div>
+        </div>
+      </motion.div>
+
       {/* Recent Activity - CodeHelp Style */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}

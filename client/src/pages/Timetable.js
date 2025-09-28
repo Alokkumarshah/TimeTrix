@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Play, Download, Clock, Users, BookOpen, Building, GraduationCap } from 'lucide-react';
+import { Calendar, Play, Download, Clock, Users, BookOpen, Building, GraduationCap, Save, CheckCircle } from 'lucide-react';
 import { batchAPI, timetableAPI } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -11,6 +11,17 @@ const Timetable = () => {
   const [loading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [allBatchesMode, setAllBatchesMode] = useState(false);
+  const [statistics, setStatistics] = useState(null);
+  const [isConflictFree, setIsConflictFree] = useState(false);
+  const [canSave, setCanSave] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveForm, setSaveForm] = useState({
+    name: '',
+    description: '',
+    semester: '',
+    academicYear: new Date().getFullYear().toString()
+  });
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const periods = ['Period 1', 'Period 2', 'Period 3', 'Period 4', 'Period 5', 'Period 6'];
@@ -57,6 +68,17 @@ const Timetable = () => {
         console.log('Direct data mode:', response.data);
         setTimetable(response.data);
       }
+      
+      // Set statistics and save status
+      if (response.data.statistics) {
+        setStatistics(response.data.statistics);
+      }
+      if (response.data.isConflictFree !== undefined) {
+        setIsConflictFree(response.data.isConflictFree);
+      }
+      if (response.data.canSave !== undefined) {
+        setCanSave(response.data.canSave);
+      }
     } catch (error) {
       console.error('Error generating timetable:', error);
       console.error('Error details:', error.response?.data);
@@ -77,6 +99,42 @@ const Timetable = () => {
     a.download = `timetable-${selectedBatch || 'all'}-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  const handleSaveTimetable = async () => {
+    if (!timetable || !canSave) return;
+
+    setSaving(true);
+    try {
+      const batchIds = allBatchesMode 
+        ? batches.map(b => b._id)
+        : batches.filter(b => b._id === selectedBatch).map(b => b._id);
+
+      const saveData = {
+        name: saveForm.name,
+        description: saveForm.description,
+        semester: saveForm.semester,
+        academicYear: saveForm.academicYear,
+        batches: batchIds,
+        timetableData: timetable,
+        statistics: statistics
+      };
+
+      await timetableAPI.save(saveData);
+      alert('Timetable saved successfully!');
+      setShowSaveModal(false);
+      setSaveForm({
+        name: '',
+        description: '',
+        semester: '',
+        academicYear: new Date().getFullYear().toString()
+      });
+    } catch (error) {
+      console.error('Error saving timetable:', error);
+      alert('Failed to save timetable: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const generateCSV = () => {
@@ -173,14 +231,18 @@ const Timetable = () => {
                               ? 'bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-600' 
                               : entry.hasClassroomCollision 
                                 ? 'bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-300 dark:border-yellow-600'
-                                : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-600'
+                                : entry.fallbackClassroom
+                                  ? 'bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-300 dark:border-orange-600'
+                                  : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-600'
                           }`}>
                             <div className={`font-semibold text-sm ${
                               entry.hasTeacherCollision 
                                 ? 'text-red-900 dark:text-red-100' 
                                 : entry.hasClassroomCollision 
                                   ? 'text-yellow-900 dark:text-yellow-100'
-                                  : 'text-blue-900 dark:text-blue-100'
+                                  : entry.fallbackClassroom
+                                    ? 'text-orange-900 dark:text-orange-100'
+                                    : 'text-blue-900 dark:text-blue-100'
                             }`}>
                               {entry.subject}
                               {entry.hasTeacherCollision && (
@@ -193,13 +255,20 @@ const Timetable = () => {
                                   ROOM CONFLICT
                                 </span>
                               )}
+                              {entry.fallbackClassroom && !entry.hasTeacherCollision && !entry.hasClassroomCollision && (
+                                <span className="ml-2 text-xs bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-200 px-2 py-1 rounded-full">
+                                  FALLBACK ROOM
+                                </span>
+                              )}
                             </div>
                             <div className={`text-xs mt-2 flex items-center ${
                               entry.hasTeacherCollision 
                                 ? 'text-red-700 dark:text-red-300' 
                                 : entry.hasClassroomCollision 
                                   ? 'text-yellow-700 dark:text-yellow-300'
-                                  : 'text-blue-700 dark:text-blue-300'
+                                  : entry.fallbackClassroom
+                                    ? 'text-orange-700 dark:text-orange-300'
+                                    : 'text-blue-700 dark:text-blue-300'
                             }`}>
                               <Users className="h-3 w-3 mr-1" />
                               {entry.faculty}
@@ -209,7 +278,9 @@ const Timetable = () => {
                                 ? 'text-red-600 dark:text-red-400' 
                                 : entry.hasClassroomCollision 
                                   ? 'text-yellow-600 dark:text-yellow-400'
-                                  : 'text-blue-600 dark:text-blue-400'
+                                  : entry.fallbackClassroom
+                                    ? 'text-orange-600 dark:text-orange-400'
+                                    : 'text-blue-600 dark:text-blue-400'
                             }`}>
                               <Building className="h-3 w-3 mr-1" />
                               {entry.classroom}
@@ -309,13 +380,25 @@ const Timetable = () => {
             </button>
 
             {timetable && (
-              <button
-                onClick={exportTimetable}
-                className="btn-secondary flex items-center space-x-2"
-              >
-                <Download className="h-4 w-4" />
-                <span>Export CSV</span>
-              </button>
+              <>
+                <button
+                  onClick={exportTimetable}
+                  className="btn-secondary flex items-center space-x-2"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Export CSV</span>
+                </button>
+                
+                {canSave && (
+                  <button
+                    onClick={() => setShowSaveModal(true)}
+                    className="btn-primary flex items-center space-x-2 bg-green-600 hover:bg-green-700"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>Save Timetable</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -356,7 +439,7 @@ const Timetable = () => {
           className="card"
         >
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Collision Summary</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="flex items-center space-x-3">
               <div className="w-4 h-4 bg-red-200 border border-red-300 rounded"></div>
               <span className="text-sm text-slate-700 dark:text-slate-300">
@@ -369,12 +452,23 @@ const Timetable = () => {
                 Classroom Conflicts: {timetable.filter(t => t.hasClassroomCollision && !t.hasTeacherCollision).length}
               </span>
             </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-4 h-4 bg-orange-200 border border-orange-300 rounded"></div>
+              <span className="text-sm text-slate-700 dark:text-slate-300">
+                Fallback Classrooms: {timetable.filter(t => t.fallbackClassroom && !t.hasTeacherCollision && !t.hasClassroomCollision).length}
+              </span>
+            </div>
           </div>
           {(timetable.filter(t => t.hasTeacherCollision).length > 0 || 
-            timetable.filter(t => t.hasClassroomCollision).length > 0) && (
+            timetable.filter(t => t.hasClassroomCollision).length > 0 ||
+            timetable.filter(t => t.fallbackClassroom).length > 0) && (
             <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
               <p className="text-sm text-orange-800">
-                <strong>Note:</strong> Conflicts detected in the timetable. Consider regenerating to resolve these issues.
+                <strong>Note:</strong> Conflicts or fallback classrooms detected in the timetable. 
+                {timetable.filter(t => t.fallbackClassroom).length > 0 && 
+                  ` ${timetable.filter(t => t.fallbackClassroom).length} classes are using fallback classrooms instead of assigned ones.`
+                }
+                Consider regenerating to resolve these issues.
               </p>
             </div>
           )}
@@ -429,6 +523,124 @@ const Timetable = () => {
             </div>
           </div>
         </motion.div>
+      )}
+
+      {/* Save Timetable Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4"
+          >
+            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+              Save Timetable
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Timetable Name *
+                </label>
+                <input
+                  type="text"
+                  value={saveForm.name}
+                  onChange={(e) => setSaveForm({...saveForm, name: e.target.value})}
+                  className="input-field"
+                  placeholder="e.g., Fall 2024 Timetable"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={saveForm.description}
+                  onChange={(e) => setSaveForm({...saveForm, description: e.target.value})}
+                  className="input-field"
+                  rows={3}
+                  placeholder="Optional description..."
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Semester *
+                  </label>
+                  <select
+                    value={saveForm.semester}
+                    onChange={(e) => setSaveForm({...saveForm, semester: e.target.value})}
+                    className="input-field"
+                    required
+                  >
+                    <option value="">Select Semester</option>
+                    <option value="1st">1st Semester</option>
+                    <option value="2nd">2nd Semester</option>
+                    <option value="3rd">3rd Semester</option>
+                    <option value="4th">4th Semester</option>
+                    <option value="5th">5th Semester</option>
+                    <option value="6th">6th Semester</option>
+                    <option value="7th">7th Semester</option>
+                    <option value="8th">8th Semester</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Academic Year *
+                  </label>
+                  <input
+                    type="text"
+                    value={saveForm.academicYear}
+                    onChange={(e) => setSaveForm({...saveForm, academicYear: e.target.value})}
+                    className="input-field"
+                    placeholder="2024"
+                    required
+                  />
+                </div>
+              </div>
+              
+              {statistics && (
+                <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                      Conflict-Free Timetable
+                    </span>
+                  </div>
+                  <div className="text-xs text-green-700 dark:text-green-300">
+                    {statistics.totalClasses} classes • {statistics.uniqueFaculty} faculty • {statistics.classroomsUsed} classrooms
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="btn-secondary flex-1"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveTimetable}
+                disabled={saving || !saveForm.name || !saveForm.semester || !saveForm.academicYear}
+                className="btn-primary flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              >
+                {saving ? (
+                  <LoadingSpinner size="small" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                <span>{saving ? 'Saving...' : 'Save'}</span>
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
     </div>
   );

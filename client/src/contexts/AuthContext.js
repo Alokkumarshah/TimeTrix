@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     checkAuthStatus();
-  }, []);
+  }, []); // Empty dependency array - only run once on mount
 
   const checkAuthStatus = async () => {
     try {
@@ -27,8 +27,16 @@ export const AuthProvider = ({ children }) => {
       if (response.data) {
         setUser(response.data);
         setIsAuthenticated(true);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
       }
     } catch (error) {
+      // Don't log auth errors on login/register pages to avoid console spam
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login' && currentPath !== '/register') {
+        console.error('Auth check failed:', error);
+      }
       setUser(null);
       setIsAuthenticated(false);
     } finally {
@@ -39,11 +47,16 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const response = await authAPI.login(credentials);
-      if (response.status === 200) {
-        // For session-based auth, the server will set the session cookie
-        // We need to fetch user data after successful login
-        await checkAuthStatus();
+      if (response.status === 200 && response.data.success) {
+        // Set user data from the response
+        setUser(response.data.user);
+        setIsAuthenticated(true);
         return { success: true };
+      } else {
+        return { 
+          success: false, 
+          error: response.data?.error || 'Login failed' 
+        };
       }
     } catch (error) {
       return { 
@@ -56,9 +69,16 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await authAPI.register(userData);
-      if (response.status === 200) {
-        await checkAuthStatus();
+      if (response.status === 200 && response.data.success) {
+        // Set user data from the response
+        setUser(response.data.user);
+        setIsAuthenticated(true);
         return { success: true };
+      } else {
+        return { 
+          success: false, 
+          error: response.data?.error || 'Registration failed' 
+        };
       }
     } catch (error) {
       return { 
