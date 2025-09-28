@@ -12,7 +12,7 @@ const timetableSchema = new mongoose.Schema({
   },
   semester: {
     type: String,
-    required: true
+    required: false
   },
   academicYear: {
     type: String,
@@ -25,8 +25,14 @@ const timetableSchema = new mongoose.Schema({
   timetableData: [{
     batch: { type: String, required: true },
     subject: { type: String, required: true },
-    faculty: { type: String, required: true },
-    classroom: { type: String, required: true },
+    faculty: { 
+      type: String, 
+      required: function() { return this.subject !== 'Lunch Break'; }
+    },
+    classroom: { 
+      type: String, 
+      required: function() { return this.subject !== 'Lunch Break'; }
+    },
     department: { type: String, required: true },
     shift: { type: String, required: true },
     day: { type: String, required: true },
@@ -69,7 +75,7 @@ const timetableSchema = new mongoose.Schema({
 });
 
 // Index for better query performance
-timetableSchema.index({ semester: 1, academicYear: 1 });
+timetableSchema.index({ academicYear: 1 });
 timetableSchema.index({ batches: 1 });
 timetableSchema.index({ isActive: 1 });
 

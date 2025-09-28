@@ -19,7 +19,6 @@ const Timetable = () => {
   const [saveForm, setSaveForm] = useState({
     name: '',
     description: '',
-    semester: '',
     academicYear: new Date().getFullYear().toString()
   });
 
@@ -110,13 +109,15 @@ const Timetable = () => {
         ? batches.map(b => b._id)
         : batches.filter(b => b._id === selectedBatch).map(b => b._id);
 
+      // Remove any incomplete entries (e.g., missing period) before saving
+      const cleanedTimetable = (timetable || []).filter(entry => entry && entry.batch && entry.day && entry.period);
+
       const saveData = {
         name: saveForm.name,
         description: saveForm.description,
-        semester: saveForm.semester,
         academicYear: saveForm.academicYear,
         batches: batchIds,
-        timetableData: timetable,
+        timetableData: cleanedTimetable,
         statistics: statistics
       };
 
@@ -126,7 +127,6 @@ const Timetable = () => {
       setSaveForm({
         name: '',
         description: '',
-        semester: '',
         academicYear: new Date().getFullYear().toString()
       });
     } catch (error) {
@@ -226,66 +226,85 @@ const Timetable = () => {
                     return (
                       <td key={day} className="px-4 py-3 text-sm">
                         {entry ? (
-                          <div className={`rounded-xl p-4 shadow-sm transition-all duration-300 hover:shadow-md ${
-                            entry.hasTeacherCollision 
-                              ? 'bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-600' 
-                              : entry.hasClassroomCollision 
-                                ? 'bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-300 dark:border-yellow-600'
-                                : entry.fallbackClassroom
-                                  ? 'bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-300 dark:border-orange-600'
-                                  : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-600'
-                          }`}>
-                            <div className={`font-semibold text-sm ${
-                              entry.hasTeacherCollision 
-                                ? 'text-red-900 dark:text-red-100' 
-                                : entry.hasClassroomCollision 
-                                  ? 'text-yellow-900 dark:text-yellow-100'
-                                  : entry.fallbackClassroom
-                                    ? 'text-orange-900 dark:text-orange-100'
-                                    : 'text-blue-900 dark:text-blue-100'
-                            }`}>
-                              {entry.subject}
-                              {entry.hasTeacherCollision && (
-                                <span className="ml-2 text-xs bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200 px-2 py-1 rounded-full">
-                                  TEACHER CONFLICT
-                                </span>
-                              )}
-                              {entry.hasClassroomCollision && !entry.hasTeacherCollision && (
-                                <span className="ml-2 text-xs bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded-full">
-                                  ROOM CONFLICT
-                                </span>
-                              )}
-                              {entry.fallbackClassroom && !entry.hasTeacherCollision && !entry.hasClassroomCollision && (
-                                <span className="ml-2 text-xs bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-200 px-2 py-1 rounded-full">
-                                  FALLBACK ROOM
-                                </span>
-                              )}
+                          entry.subject === 'Lunch Break' ? (
+                            <div className="rounded-xl p-6 bg-green-50 dark:bg-green-900/20 border-2 border-green-300 dark:border-green-700 text-center">
+                              <div className="text-green-800 dark:text-green-200 font-extrabold text-lg tracking-wide">Lunch</div>
                             </div>
-                            <div className={`text-xs mt-2 flex items-center ${
+                          ) : (
+                            <div className={`rounded-xl p-4 shadow-sm transition-all duration-300 hover:shadow-md ${
                               entry.hasTeacherCollision 
-                                ? 'text-red-700 dark:text-red-300' 
+                                ? 'bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-600' 
                                 : entry.hasClassroomCollision 
-                                  ? 'text-yellow-700 dark:text-yellow-300'
+                                  ? 'bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-300 dark:border-yellow-600'
                                   : entry.fallbackClassroom
-                                    ? 'text-orange-700 dark:text-orange-300'
-                                    : 'text-blue-700 dark:text-blue-300'
+                                    ? 'bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-300 dark:border-orange-600'
+                                    : entry.fixedSlot
+                                      ? 'bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-300 dark:border-purple-600'
+                                      : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-600'
                             }`}>
-                              <Users className="h-3 w-3 mr-1" />
-                              {entry.faculty}
+                              <div className={`font-semibold text-sm ${
+                                entry.hasTeacherCollision 
+                                  ? 'text-red-900 dark:text-red-100' 
+                                  : entry.hasClassroomCollision 
+                                    ? 'text-yellow-900 dark:text-yellow-100'
+                                    : entry.fallbackClassroom
+                                      ? 'text-orange-900 dark:text-orange-100'
+                                      : entry.fixedSlot
+                                        ? 'text-purple-900 dark:text-purple-100'
+                                        : 'text-blue-900 dark:text-blue-100'
+                              }`}>
+                                {entry.subject}
+                                {entry.fixedSlot && (
+                                  <span className="ml-2 text-xs bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 px-2 py-1 rounded-full">
+                                    FIXED
+                                  </span>
+                                )}
+                                {entry.hasTeacherCollision && (
+                                  <span className="ml-2 text-xs bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200 px-2 py-1 rounded-full">
+                                    TEACHER CONFLICT
+                                  </span>
+                                )}
+                                {entry.hasClassroomCollision && !entry.hasTeacherCollision && (
+                                  <span className="ml-2 text-xs bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded-full">
+                                    ROOM CONFLICT
+                                  </span>
+                                )}
+                                {entry.fallbackClassroom && !entry.hasTeacherCollision && !entry.hasClassroomCollision && (
+                                  <span className="ml-2 text-xs bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-200 px-2 py-1 rounded-full">
+                                    FALLBACK ROOM
+                                  </span>
+                                )}
+                              </div>
+                              <div className={`text-xs mt-2 flex items-center ${
+                                entry.hasTeacherCollision 
+                                  ? 'text-red-700 dark:text-red-300' 
+                                  : entry.hasClassroomCollision 
+                                    ? 'text-yellow-700 dark:text-yellow-300'
+                                    : entry.fallbackClassroom
+                                      ? 'text-orange-700 dark:text-orange-300'
+                                      : entry.fixedSlot
+                                        ? 'text-purple-700 dark:text-purple-300'
+                                        : 'text-blue-700 dark:text-blue-300'
+                              }`}>
+                                <Users className="h-3 w-3 mr-1" />
+                                {entry.faculty}
+                              </div>
+                              <div className={`text-xs mt-1 flex items-center ${
+                                entry.hasTeacherCollision 
+                                  ? 'text-red-600 dark:text-red-400' 
+                                  : entry.hasClassroomCollision 
+                                    ? 'text-yellow-600 dark:text-yellow-400'
+                                    : entry.fallbackClassroom
+                                      ? 'text-orange-600 dark:text-orange-400'
+                                      : entry.fixedSlot
+                                        ? 'text-purple-600 dark:text-purple-400'
+                                        : 'text-blue-600 dark:text-blue-400'
+                              }`}>
+                                <Building className="h-3 w-3 mr-1" />
+                                {entry.classroom}
+                              </div>
                             </div>
-                            <div className={`text-xs mt-1 flex items-center ${
-                              entry.hasTeacherCollision 
-                                ? 'text-red-600 dark:text-red-400' 
-                                : entry.hasClassroomCollision 
-                                  ? 'text-yellow-600 dark:text-yellow-400'
-                                  : entry.fallbackClassroom
-                                    ? 'text-orange-600 dark:text-orange-400'
-                                    : 'text-blue-600 dark:text-blue-400'
-                            }`}>
-                              <Building className="h-3 w-3 mr-1" />
-                              {entry.classroom}
-                            </div>
-                          </div>
+                          )
                         ) : (
                           <div className="text-slate-400 dark:text-slate-500 text-center py-4">-</div>
                         )}
@@ -390,8 +409,8 @@ const Timetable = () => {
                 </button>
                 
                 {canSave && (
-                  <button
-                    onClick={() => setShowSaveModal(true)}
+                <button
+                  onClick={() => { setShowSaveModal(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     className="btn-primary flex items-center space-x-2 bg-green-600 hover:bg-green-700"
                   >
                     <Save className="h-4 w-4" />
@@ -527,7 +546,7 @@ const Timetable = () => {
 
       {/* Save Timetable Modal */}
       {showSaveModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 pt-10">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -565,42 +584,18 @@ const Timetable = () => {
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Semester *
-                  </label>
-                  <select
-                    value={saveForm.semester}
-                    onChange={(e) => setSaveForm({...saveForm, semester: e.target.value})}
-                    className="input-field"
-                    required
-                  >
-                    <option value="">Select Semester</option>
-                    <option value="1st">1st Semester</option>
-                    <option value="2nd">2nd Semester</option>
-                    <option value="3rd">3rd Semester</option>
-                    <option value="4th">4th Semester</option>
-                    <option value="5th">5th Semester</option>
-                    <option value="6th">6th Semester</option>
-                    <option value="7th">7th Semester</option>
-                    <option value="8th">8th Semester</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Academic Year *
-                  </label>
-                  <input
-                    type="text"
-                    value={saveForm.academicYear}
-                    onChange={(e) => setSaveForm({...saveForm, academicYear: e.target.value})}
-                    className="input-field"
-                    placeholder="2024"
-                    required
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Academic Year *
+                </label>
+                <input
+                  type="text"
+                  value={saveForm.academicYear}
+                  onChange={(e) => setSaveForm({...saveForm, academicYear: e.target.value})}
+                  className="input-field"
+                  placeholder="2024"
+                  required
+                />
               </div>
               
               {statistics && (
@@ -628,7 +623,7 @@ const Timetable = () => {
               </button>
               <button
                 onClick={handleSaveTimetable}
-                disabled={saving || !saveForm.name || !saveForm.semester || !saveForm.academicYear}
+                disabled={saving || !saveForm.name || !saveForm.academicYear}
                 className="btn-primary flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
               >
                 {saving ? (

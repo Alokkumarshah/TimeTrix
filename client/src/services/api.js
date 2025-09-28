@@ -112,7 +112,8 @@ export const constraintAPI = {
 export const specialClassAPI = {
   getAll: () => api.get('/special-classes'),
   create: (classData) => api.post('/special-classes', classData),
-  delete: (id) => api.post('/special-classes/delete', { id }),
+  delete: (id) => api.delete(`/special-classes/${id}`),
+  update: (id, data) => api.put(`/special-classes/${id}`, data),
 };
 
 // Timetable API

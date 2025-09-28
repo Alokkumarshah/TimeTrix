@@ -15,34 +15,70 @@ exports.saveTimetable = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!name || !semester || !academicYear || !timetableData || !batches) {
+    if (!name || !academicYear || !timetableData || !batches) {
       return res.status(400).json({ 
-        error: 'Missing required fields: name, semester, academicYear, timetableData, batches' 
+        error: 'Missing required fields: name, academicYear, timetableData, batches' 
       });
     }
 
-    // Check if timetable name already exists for this semester and academic year
+    // Ensure batches is a non-empty array
+    if (!Array.isArray(batches) || batches.length === 0) {
+      return res.status(400).json({
+        error: 'At least one batch is required to save a timetable'
+      });
+    }
+
+    // Check if timetable name already exists for this academic year
     const existingTimetable = await Timetable.findOne({
       name,
-      semester,
       academicYear,
       isActive: true
     });
 
     if (existingTimetable) {
       return res.status(400).json({ 
-        error: 'A timetable with this name already exists for the specified semester and academic year' 
+        error: 'A timetable with this name already exists for the specified academic year' 
       });
     }
+
+    // Derive semester from batches if not provided
+    let computedSemester = '';
+    try {
+      if (Array.isArray(batches) && batches.length > 0) {
+        const batchDocs = await Batch.find({ _id: { $in: batches } }).select('semester');
+        const semesterSet = new Set(
+          batchDocs
+            .map(b => b.semester)
+            .filter(s => s !== undefined && s !== null)
+        );
+        if (semesterSet.size === 1) {
+          computedSemester = Array.from(semesterSet)[0].toString();
+        } else if (semesterSet.size > 1) {
+          computedSemester = 'All';
+        }
+      }
+    } catch (e) {
+      // If semester derivation fails, proceed without blocking save
+      console.warn('Semester derivation failed:', e);
+    }
+
+    // Filter out any invalid timetable entries just in case
+    const sanitizedTimetableData = Array.isArray(timetableData)
+      ? timetableData.filter(e => {
+          if (!e || !e.batch || !e.day || !e.period || !e.subject || !e.department || !e.shift) return false;
+          if (e.subject === 'Lunch Break') return true; // allow missing faculty/classroom
+          return !!(e.faculty && e.classroom);
+        })
+      : [];
 
     // Create new timetable
     const timetable = new Timetable({
       name,
       description: description || '',
-      semester,
+      semester: semester || computedSemester || '',
       academicYear,
       batches,
-      timetableData,
+      timetableData: sanitizedTimetableData,
       statistics: statistics || {},
       createdBy: req.session.userId
     });
@@ -58,7 +94,7 @@ exports.saveTimetable = async (req, res) => {
     });
   } catch (error) {
     console.error('Error saving timetable:', error);
-    res.status(500).json({ error: 'Failed to save timetable' });
+    res.status(500).json({ error: `Failed to save timetable: ${error.message || 'Unknown error'}` });
   }
 };
 
@@ -182,7 +218,9 @@ exports.deleteTimetable = async (req, res) => {
 // Get filter options (unique semesters, academic years, batches)
 exports.getFilterOptions = async (req, res) => {
   try {
-    const semesters = await Timetable.distinct('semester', { isActive: true });
+    const semesters = await Timetable.distinct('semester', { isActive: true }).then(sems => 
+      sems.filter(s => s && s.trim() !== '') // Filter out empty/null semesters
+    );
     const academicYears = await Timetable.distinct('academicYear', { isActive: true });
     
     // Get batches that are referenced in saved timetables

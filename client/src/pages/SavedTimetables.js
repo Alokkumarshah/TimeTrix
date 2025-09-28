@@ -190,19 +190,34 @@ const SavedTimetables = () => {
                     return (
                       <td key={day} className="px-2 py-2 text-sm">
                         {entry ? (
+                          entry.subject === 'Lunch Break' ? (
+                            <div className="rounded-lg p-3 bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 text-center">
+                              <div className="text-green-800 dark:text-green-200 font-extrabold text-sm tracking-wide">Lunch</div>
+                            </div>
+                          ) : (
                           <div className={`rounded-lg p-2 text-xs ${
-                            entry.hasTeacherCollision 
-                              ? 'bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-600' 
-                              : entry.hasClassroomCollision 
-                                ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-600'
-                                : entry.fallbackClassroom
+                              entry.hasTeacherCollision 
+                                ? 'bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-600' 
+                                : entry.hasClassroomCollision 
+                                  ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-600'
+                                  : entry.fallbackClassroom
                                   ? 'bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-600'
-                                  : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-600'
-                          }`}>
-                            <div className="font-semibold">{entry.subject}</div>
-                            <div className="text-xs opacity-75">{entry.faculty}</div>
-                            <div className="text-xs opacity-75">{entry.classroom}</div>
-                          </div>
+                                  : entry.fixedSlot
+                                    ? 'bg-purple-50 dark:bg-purple-900/20 border border-purple-300 dark:border-purple-600'
+                                    : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-600'
+                            }`}>
+                              <div className="font-semibold">
+                                {entry.subject}
+                                {entry.fixedSlot && (
+                                  <span className="ml-2 text-[10px] bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 px-2 py-0.5 rounded-full">
+                                    FIXED
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs opacity-75">{entry.faculty}</div>
+                              <div className="text-xs opacity-75">{entry.classroom}</div>
+                            </div>
+                          )
                         ) : (
                           <div className="text-slate-400 dark:text-slate-500 text-center py-2">-</div>
                         )}
@@ -384,7 +399,7 @@ const SavedTimetables = () => {
                     <div className="flex items-center space-x-6 text-sm text-slate-500 dark:text-slate-400 mb-4">
                       <div className="flex items-center space-x-1">
                         <Calendar className="h-4 w-4" />
-                        <span>{timetable.semester} • {timetable.academicYear}</span>
+                        <span>{timetable.semester ? `${timetable.semester} • ` : ''}{timetable.academicYear}</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <Clock className="h-4 w-4" />
@@ -496,7 +511,7 @@ const SavedTimetables = () => {
                   {selectedTimetable.name}
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400">
-                  {selectedTimetable.semester} • {selectedTimetable.academicYear}
+                  {selectedTimetable.semester ? `${selectedTimetable.semester} • ` : ''}{selectedTimetable.academicYear}
                 </p>
               </div>
               <button
